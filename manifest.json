@@ -1,0 +1,41 @@
+{
+  "id": "warranty-vault",
+  "name": "Warranty Vault",
+  "version": "1.0.0",
+  "description": "A receipt and warranty vault for the things you own — purchase dates, serial numbers, receipt photos, and a heads-up before each warranty runs out.",
+  "entrypoint": "index.html",
+  "runtime": "static",
+  "category": "family",
+  "tags": ["warranty", "receipts", "purchases", "home", "documents"],
+  "icon": "🧾",
+  "data_access": {
+    "reads": ["family.members"],
+    "writes": []
+  },
+  "permissions": {
+    "default_audience": "everyone",
+    "requires_approval": false
+  },
+  "storage": "db",
+  "db_plaintext_columns": ["purchase_date", "warranty_expires_date"],
+  "row_policies": {
+    "items": {
+      "kind": "adult_writable"
+    }
+  },
+  "document_acls": {
+    "write": { "require_role": "adult" }
+  },
+  "file_acls": {
+    "write": { "require_role": "adult" }
+  },
+  "nav": { "label": "Warranties" },
+  "resource_limits": {
+    "max_db_bytes": 52428800
+  },
+  "ai_access": {
+    "allowed": true,
+    "mode": "read",
+    "db_exports": ["items"]
+  }
+}

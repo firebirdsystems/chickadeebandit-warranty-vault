@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Warranty Vault</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: var(--hub-bg, #f9fafb);
+      --surface: var(--hub-surface, #ffffff);
+      --border: var(--hub-border, #e5e7eb);
+      --border-mid: var(--hub-border, #d1d5db);
+      --text: var(--hub-text, #111827);
+      --muted: var(--hub-text-muted, #6b7280);
+      --accent: var(--hub-primary, #111827);
+      --accent-hover: var(--hub-primary-hover, #374151);
+      --accent-fg: var(--hub-primary-fg, #ffffff);
+      --radius: var(--hub-radius, 10px);
+      --green: #047857; --green-soft: #d1fae5;
+      --amber: #b45309; --amber-soft: #fef3c7;
+      --red: #b91c1c; --red-soft: #fee2e2;
+      --shadow: 0 1px 3px rgba(15, 23, 42, .07);
+    }
+    body {
+      min-height: 100vh; background: var(--bg); color: var(--text);
+      font-family: var(--hub-font, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+      font-size: var(--hub-font-size, 15px); line-height: 1.5;
+    }
+    .app { max-width: 720px; margin: 0 auto; padding: 16px; }
+    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    h1 { font-size: 1.35rem; line-height: 1.2; }
+    .muted { color: var(--muted); }
+    .tiny { font-size: .78rem; }
+    .stack { display: grid; gap: 8px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border: 1px solid transparent; border-radius: 8px; padding: 8px 12px;
+      font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer;
+      min-height: 38px; background: var(--accent); color: var(--accent-fg);
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: .48; cursor: default; }
+    .btn-ghost { background: transparent; color: var(--text); border-color: var(--border-mid); }
+    .btn-ghost:hover { background: rgba(127,127,127,.08); }
+    .btn-danger { background: var(--red-soft); color: var(--red); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px; }
+    .search { margin-bottom: 10px; }
+    .row {
+      display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .row-icon { font-size: 1.15rem; width: 30px; text-align: center; flex-shrink: 0; }
+    .row-body { flex: 1; min-width: 0; }
+    .row-title { font-weight: 750; font-size: .92rem; }
+    .row-meta { color: var(--muted); font-size: .78rem; }
+    .row-side { flex-shrink: 0; text-align: right; display: grid; gap: 3px; justify-items: end; }
+    .pill {
+      display: inline-flex; align-items: center; min-height: 20px; padding: 1px 8px;
+      border-radius: 999px; white-space: nowrap; background: #f1f5f9; color: var(--muted);
+      font-size: .72rem; font-weight: 800;
+    }
+    .pill.expiring { background: var(--amber-soft); color: var(--amber); }
+    .pill.active { background: var(--green-soft); color: var(--green); }
+    .pill.expired { background: var(--red-soft); color: var(--red); }
+    .edit-link { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: .76rem; font-weight: 700; padding: 2px 4px; }
+    .edit-link:hover { color: var(--text); text-decoration: underline; }
+    .receipt-link { color: var(--muted); font-size: .76rem; font-weight: 700; text-decoration: underline; }
+    .empty { color: var(--muted); text-align: center; padding: 30px 16px; }
+    .error { background: var(--red-soft); color: var(--red); padding: 9px 12px; border-radius: 8px; margin-bottom: 10px; font-size: .86rem; }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.42); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal { background: var(--surface); border-radius: 14px; padding: 22px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,.25); max-height: 92vh; overflow-y: auto; }
+    .modal h2 { font-size: 1.05rem; margin-bottom: 16px; }
+    .form { display: grid; gap: 12px; }
+    .field { display: grid; gap: 5px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 800; }
+    input, select, textarea {
+      width: 100%; border: 1.5px solid var(--border-mid); border-radius: 8px;
+      padding: 9px 11px; font: inherit; background: var(--surface); color: var(--text);
+    }
+    textarea { min-height: 56px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end; }
+    .modal-left { margin-right: auto; }
+    @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
+  </style>
+  <base href="/run/warranty-vault/">
+</head>
+<body>
+<div class="app">
+  <div id="root" class="empty">Loading…</div>
+</div>
+
+<script type="module">
+import { esc, isAdult, hubConfirm, fmtMoney, createFilesHelper } from "/hub-sdk.js";
+import {
+  CATEGORIES, categoryMeta, warrantyExpiryDate, warrantyStatus, warrantyLabel,
+  sortedItems, parseMoneyToCents,
+} from "./logic.js";
+
+const CONTEXT = window.__CONTEXT_URL ?? "";
+const DB = window.__DB_URL ?? "";
+const DOCS = window.__DOCS_URL ?? "";
+const HUB_MEMBER = window.__CURRENT_MEMBER ?? null;
+const files = createFilesHelper(window.__FILES_URL ?? "");
+
+let members = [];
+let me = null;
+let items = [];
+let query = "";
+let error = "";
+let modalEl = null;
+
+function nowIso() { return new Date().toISOString(); }
+function canManage() { return !!me && isAdult(me); }
+
+/* ── DB helper ─────────────────────────────────────────────────────────────── */
+async function db(sql, params = []) {
+  if (!DB) return { rows: [] };
+  const res = await fetch(DB, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sql, params }),
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json;
+}
+
+/* ── Loading ───────────────────────────────────────────────────────────────── */
+async function loadMembers() {
+  if (!CONTEXT) {
+    members = [{ id: "demo-1", name: "Alex", role: "adult" }];
+  } else {
+    try {
+      const res = await fetch(`${CONTEXT}?keys=family.members`);
+      members = ((await res.json())["family.members"]) ?? [];
+    } catch { members = []; }
+  }
+  me = HUB_MEMBER ?? members[0] ?? { id: "guest", name: "Guest", role: "adult" };
+}
+
+async function loadItems() {
+  if (!DB) {
+    items = [
+      { id: "d1", name: "LG Dishwasher", category: "appliances", purchase_date: "2025-11-02", price_cents: 74900, retailer: "Home Depot", warranty_months: 12, warranty_expires_date: "2026-11-02", serial_number: "LG-8842-A", notes: "", receipt_file_id: "", receipt_doc_id: "", created_by: "demo-1", created_at: nowIso(), updated_at: nowIso() },
+      { id: "d2", name: "MacBook Air", category: "electronics", purchase_date: "2024-09-15", price_cents: 119900, retailer: "Apple", warranty_months: 24, warranty_expires_date: "2026-09-15", serial_number: "C02XL0", notes: "AppleCare", receipt_file_id: "", receipt_doc_id: "", created_by: "demo-1", created_at: nowIso(), updated_at: nowIso() },
+    ];
+    return;
+  }
+  const res = await db("SELECT id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, receipt_file_id, receipt_doc_id, created_by, created_at, updated_at FROM app_warranty_vault__items");
+  items = res.rows ?? [];
+}
+
+async function refresh() {
+  error = "";
+  try {
+    await Promise.all([loadMembers(), loadItems()]);
+    render();
+  } catch (e) { error = e.message; render(); }
+}
+
+function showError(msg) { error = msg; render(); }
+
+/* ── Mutations ─────────────────────────────────────────────────────────────── */
+async function saveItem(fields, existingId) {
+  const now = nowIso();
+  if (existingId) {
+    const idx = items.findIndex((i) => i.id === existingId);
+    const prev = idx !== -1 ? items[idx] : null;
+    if (idx !== -1) items[idx] = { ...items[idx], ...fields, updated_at: now };
+    closeModal(); render();
+    try {
+      await db(
+        "UPDATE app_warranty_vault__items SET name=?, category=?, purchase_date=?, price_cents=?, retailer=?, warranty_months=?, warranty_expires_date=?, serial_number=?, notes=?, receipt_file_id=?, receipt_doc_id=?, updated_at=? WHERE id=?",
+        [fields.name, fields.category, fields.purchase_date, fields.price_cents, fields.retailer, fields.warranty_months, fields.warranty_expires_date, fields.serial_number, fields.notes, fields.receipt_file_id, fields.receipt_doc_id, now, existingId],
+      );
+    } catch (e) { if (idx !== -1 && prev) items[idx] = prev; showError(e.message); }
+  } else {
+    const row = { id: crypto.randomUUID(), ...fields, created_by: me.id, created_at: now, updated_at: now };
+    items = [...items, row];
+    closeModal(); render();
+    try {
+      await db(
+        "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, receipt_file_id, receipt_doc_id, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [row.id, row.name, row.category, row.purchase_date, row.price_cents, row.retailer, row.warranty_months, row.warranty_expires_date, row.serial_number, row.notes, row.receipt_file_id, row.receipt_doc_id, row.created_by, now, now],
+      );
+    } catch (e) { items = items.filter((i) => i.id !== row.id); showError(e.message); }
+  }
+}
+
+async function deleteItem(id) {
+  const item = items.find((i) => i.id === id);
+  const ok = await hubConfirm({ message: "Delete this item?", description: "Its receipt document is removed too.", confirmLabel: "Delete", destructive: true });
+  if (!ok) return;
+  const prev = items;
+  items = items.filter((i) => i.id !== id);
+  closeModal(); render();
+  try {
+    await db("DELETE FROM app_warranty_vault__items WHERE id = ?", [id]);
+    // Best-effort cleanup of the hub document + backing file.
+    if (item?.receipt_doc_id && DOCS) await fetch(`${DOCS}/${encodeURIComponent(item.receipt_doc_id)}`, { method: "DELETE" }).catch(() => {});
+    if (item?.receipt_file_id) await files.delete(item.receipt_file_id).catch(() => {});
+  } catch (e) { items = prev; showError(e.message); }
+}
+
+/** Upload a receipt file and create the hub document record. */
+async function uploadReceipt(file, itemName) {
+  const { id: fileId } = await files.upload(file);
+  let docId = "";
+  if (DOCS) {
+    try {
+      const res = await fetch(DOCS, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Receipt — ${itemName || file.name}`,
+          category: "home",
+          fileKey: fileId,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          folder: "Warranties",
+          sharedWith: ["everyone"],
+        }),
+      });
+      if (res.ok) docId = (await res.json())?.id ?? "";
+    } catch { /* document record is best-effort; the file id still links */ }
+  }
+  return { fileId, docId };
+}
+
+/* ── Rendering ─────────────────────────────────────────────────────────────── */
+function fmtDate(iso) {
+  if (!iso) return "";
+  const d = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Intl.DateTimeFormat(undefined, { month: "short", year: "numeric" }).format(d);
+}
+
+function renderItem(i) {
+  const cat = categoryMeta(i.category);
+  const status = i._status;
+  const metaBits = [
+    i.retailer ? esc(i.retailer) : "",
+    i.purchase_date ? `bought ${esc(fmtDate(i.purchase_date))}` : "",
+    i.price_cents != null ? esc(fmtMoney(Number(i.price_cents))) : "",
+    i.serial_number ? `SN ${esc(i.serial_number)}` : "",
+  ].filter(Boolean).join(" · ");
+  return `
+    <div class="row">
+      <div class="row-icon" aria-hidden="true">${cat.icon}</div>
+      <div class="row-body">
+        <div class="row-title">${esc(i.name)}</div>
+        <div class="row-meta">${metaBits}</div>
+        ${i.notes ? `<div class="row-meta">${esc(i.notes)}</div>` : ""}
+      </div>
+      <div class="row-side">
+        <span class="pill ${esc(status)}">${esc(warrantyLabel(i))}</span>
+        <span>
+          ${i.receipt_file_id ? `<a class="receipt-link" href="${esc(files.url(i.receipt_file_id))}" target="_blank" rel="noopener">Receipt</a>` : ""}
+          ${canManage() ? `<button class="edit-link" data-edit="${esc(i.id)}">Edit</button>` : ""}
+        </span>
+      </div>
+    </div>`;
+}
+
+function render() {
+  const root = document.getElementById("root");
+  root.className = "app-root";
+  const q = query.trim().toLowerCase();
+  const list = sortedItems(items).filter((i) =>
+    !q || String(i.name).toLowerCase().includes(q) || String(i.retailer).toLowerCase().includes(q));
+  root.innerHTML = `
+    <div class="topbar">
+      <div>
+        <h1>🧾 Warranty Vault</h1>
+        <p class="muted tiny">What you bought, when, and how long it's covered.</p>
+      </div>
+      ${canManage() ? `<button class="btn" data-add>+ Add item</button>` : ""}
+    </div>
+    ${error ? `<div class="error">${esc(error)}</div>` : ""}
+    ${items.length > 5 ? `<div class="search"><input id="search" placeholder="Search items or retailers…" value="${esc(query)}" /></div>` : ""}
+    ${list.length
+      ? `<div class="stack">${list.map(renderItem).join("")}</div>`
+      : `<div class="card empty">${items.length ? "No matches." : `Nothing in the vault yet${canManage() ? " — add your first purchase" : ""}.`}</div>`}
+    ${!canManage() && items.length ? `<p class="muted tiny" style="margin-top:10px">Only adults can edit the vault.</p>` : ""}
+  `;
+  const search = document.getElementById("search");
+  if (search) {
+    search.addEventListener("input", (e) => {
+      query = e.target.value;
+      render();
+      const el = document.getElementById("search");
+      el?.focus();
+      el?.setSelectionRange(el.value.length, el.value.length);
+    });
+  }
+}
+
+/* ── Modal ─────────────────────────────────────────────────────────────────── */
+function openModal(html) {
+  closeModal();
+  modalEl = document.createElement("div");
+  modalEl.className = "overlay";
+  modalEl.innerHTML = `<div class="modal">${html}</div>`;
+  modalEl.addEventListener("click", (e) => { if (e.target === modalEl) closeModal(); });
+  document.body.appendChild(modalEl);
+}
+function closeModal() { modalEl?.remove(); modalEl = null; }
+
+function openEditor(existing) {
+  const i = existing ?? null;
+  const catOptions = CATEGORIES.map((c) => `<option value="${c.value}" ${i?.category === c.value ? "selected" : ""}>${c.icon} ${c.label}</option>`).join("");
+  const canUpload = !!window.__FILES_URL;
+  openModal(`
+    <h2>${i ? "Edit item" : "Add item"}</h2>
+    <form class="form" id="item-form">
+      <div class="field"><label for="f-name">Item</label><input id="f-name" data-autofocus value="${esc(i?.name ?? "")}" placeholder="LG Dishwasher" required /></div>
+      <div class="grid2">
+        <div class="field"><label for="f-cat">Category</label><select id="f-cat">${catOptions}</select></div>
+        <div class="field"><label for="f-retailer">Retailer</label><input id="f-retailer" value="${esc(i?.retailer ?? "")}" placeholder="Home Depot" /></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="f-date">Purchase date</label><input id="f-date" type="date" value="${esc(i?.purchase_date ?? "")}" /></div>
+        <div class="field"><label for="f-price">Price</label><input id="f-price" inputmode="decimal" value="${i?.price_cents != null ? esc((Number(i.price_cents) / 100).toFixed(2)) : ""}" placeholder="749.00" /></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="f-warranty">Warranty (months)</label><input id="f-warranty" type="number" min="0" max="600" value="${esc(i?.warranty_months ?? "")}" placeholder="12" /></div>
+        <div class="field"><label for="f-serial">Serial number</label><input id="f-serial" value="${esc(i?.serial_number ?? "")}" /></div>
+      </div>
+      ${canUpload ? `
+        <div class="field">
+          <label for="f-receipt">Receipt ${i?.receipt_file_id ? `<span class="muted" style="text-transform:none">(replaces the current one)</span>` : ""}</label>
+          <input id="f-receipt" type="file" accept="image/*,application/pdf" />
+        </div>` : ""}
+      <div class="field"><label for="f-notes">Notes</label><textarea id="f-notes">${esc(i?.notes ?? "")}</textarea></div>
+      <div class="modal-actions">
+        ${i ? `<button type="button" class="btn btn-danger modal-left" data-delete="${esc(i.id)}">Delete</button>` : ""}
+        <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
+        <button type="submit" class="btn">${i ? "Save" : "Add"}</button>
+      </div>
+    </form>`);
+  modalEl.querySelector("[data-autofocus]")?.focus();
+  modalEl.querySelector("#item-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("f-name").value.trim();
+    if (!name) { document.getElementById("f-name").focus(); return; }
+    const priceRaw = document.getElementById("f-price").value.trim();
+    const price = parseMoneyToCents(priceRaw);
+    if (priceRaw && price == null) { showError("Price must be a dollar amount like 749 or 749.99."); return; }
+    const purchaseDate = document.getElementById("f-date").value;
+    const warrantyRaw = document.getElementById("f-warranty").value;
+    const warrantyMonths = warrantyRaw ? Number(warrantyRaw) : null;
+    const btn = modalEl?.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+
+    let receiptFileId = i?.receipt_file_id ?? "";
+    let receiptDocId = i?.receipt_doc_id ?? "";
+    const fileInput = document.getElementById("f-receipt");
+    const file = fileInput?.files?.[0];
+    try {
+      if (file) {
+        const oldFileId = receiptFileId;
+        const oldDocId = receiptDocId;
+        const up = await uploadReceipt(file, name);
+        receiptFileId = up.fileId;
+        receiptDocId = up.docId;
+        // Best-effort cleanup of the replaced receipt.
+        if (oldDocId && DOCS) fetch(`${DOCS}/${encodeURIComponent(oldDocId)}`, { method: "DELETE" }).catch(() => {});
+        if (oldFileId) files.delete(oldFileId).catch(() => {});
+      }
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = i ? "Save" : "Add"; }
+      showError(`Receipt upload failed: ${err.message}`);
+      return;
+    }
+
+    saveItem({
+      name,
+      category: document.getElementById("f-cat").value,
+      purchase_date: purchaseDate,
+      price_cents: price,
+      retailer: document.getElementById("f-retailer").value.trim(),
+      warranty_months: Number.isFinite(warrantyMonths) && warrantyMonths > 0 ? warrantyMonths : null,
+      warranty_expires_date: warrantyExpiryDate(purchaseDate, warrantyMonths),
+      serial_number: document.getElementById("f-serial").value.trim(),
+      notes: document.getElementById("f-notes").value.trim(),
+      receipt_file_id: receiptFileId,
+      receipt_doc_id: receiptDocId,
+    }, i?.id ?? null).catch((err) => showError(err.message));
+  });
+}
+
+/* ── Events ────────────────────────────────────────────────────────────────── */
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("button");
+  if (!t) return;
+  if (t.hasAttribute("data-add")) { openEditor(null); return; }
+  if (t.hasAttribute("data-edit")) { openEditor(items.find((i) => i.id === t.getAttribute("data-edit"))); return; }
+  if (t.hasAttribute("data-cancel")) { closeModal(); return; }
+  if (t.hasAttribute("data-delete")) { deleteItem(t.getAttribute("data-delete")); return; }
+});
+
+refresh();
+</script>
+</body>
+</html>
