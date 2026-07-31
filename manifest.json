@@ -18,6 +18,12 @@
   },
   "storage": "db",
   "db_plaintext_columns": ["purchase_date", "warranty_expires_date"],
+    "member_references": {
+      "items": {
+        "column": "created_by",
+        "on_removed": "keep"
+      }
+    },
   "row_policies": {
     "items": {
       "kind": "adult_writable"
@@ -32,7 +38,9 @@
   },
   "nav": { "label": "Warranties" },
   "resource_limits": {
-    "max_db_bytes": 52428800
+    "max_db_bytes": 52428800,
+    "max_file_bytes": 10485760,
+    "max_files_bytes": 524288000
   },
   "ai_access": {
     "allowed": true,
