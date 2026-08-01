@@ -93,10 +93,10 @@
 </div>
 
 <script type="module">
-import { esc, isAdult, hubConfirm, fmtMoney, createFilesHelper } from "/hub-sdk.js";
+import { esc, isAdult, hubConfirm, fmtMoney, createFilesHelper, searchMatch } from "/hub-sdk.js";
 import {
   CATEGORIES, categoryMeta, warrantyExpiryDate, warrantyStatus, warrantyLabel,
-  sortedItems, parseMoneyToCents,
+  sortedItems, parseMoneyToCents, searchableFields,
 } from "./logic.js";
 
 const CONTEXT = window.__CONTEXT_URL ?? "";
@@ -274,9 +274,9 @@ function renderItem(i) {
 function render() {
   const root = document.getElementById("root");
   root.className = "app-root";
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   const list = sortedItems(items).filter((i) =>
-    !q || String(i.name).toLowerCase().includes(q) || String(i.retailer).toLowerCase().includes(q));
+    !q || searchMatch(q, searchableFields(i)));
   root.innerHTML = `
     <div class="topbar">
       <div>

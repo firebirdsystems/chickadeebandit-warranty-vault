@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   categoryMeta, warrantyExpiryDate, daysUntilDate, warrantyStatus,
-  warrantyLabel, sortedItems, parseMoneyToCents,
+  warrantyLabel, sortedItems, parseMoneyToCents, searchableFields,
 } from "../src/logic.js";
 
 const FROM = new Date(2026, 6, 12, 9, 0, 0); // July 12, 2026 local
@@ -68,4 +68,17 @@ describe("parseMoneyToCents", () => {
 
 describe("categoryMeta", () => {
   it("falls back to other", () => expect(categoryMeta("bogus").value).toBe("other"));
+});
+
+describe("searchableFields", () => {
+  it("finds an item by serial number, which is where a claim actually starts", () => {
+    const item = {
+      name: "Dishwasher", retailer: "Curry's", category: "appliance",
+      serial_number: "SN-99213-A", notes: "extended cover to 2029",
+    };
+    const fields = searchableFields(item);
+    expect(fields).toContain("SN-99213-A");
+    expect(fields).toContain("extended cover to 2029");
+    expect(fields).toContain("Curry's");
+  });
 });

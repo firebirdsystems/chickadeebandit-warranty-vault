@@ -92,3 +92,12 @@ export function parseMoneyToCents(raw) {
   const [whole, frac = ""] = s.split(".");
   return Number(whole) * 100 + Number((frac + "00").slice(0, 2));
 }
+
+/**
+ * Fields the in-app search matches against (see hub-sdk `searchMatch`). Serial
+ * number and notes are included deliberately: a warranty claim usually starts
+ * from a serial on the device itself, not from what the item was named here.
+ */
+export function searchableFields(item) {
+  return [item.name, item.retailer, item.category, item.serial_number, item.notes];
+}
