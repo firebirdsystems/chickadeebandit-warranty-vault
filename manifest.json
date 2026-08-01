@@ -37,6 +37,21 @@
     "read": "document_acl"
   },
   "nav": { "label": "Warranties" },
+  "agenda": {
+    "kind": "reminder",
+    "label": "Warranty ends today",
+    "source": {
+      "kind": "sql",
+      "query": "SELECT id AS id, name AS title, NULLIF(retailer, '') AS subtitle, warranty_expires_date AS when_at FROM app_warranty_vault__items WHERE warranty_expires_date = :today ORDER BY created_at LIMIT 20"
+    }
+  },
+  "glance": {
+    "source": {
+      "kind": "sql",
+      "query": "SELECT name AS title, category AS subtitle, warranty_expires_date AS expires_on FROM app_warranty_vault__items WHERE warranty_expires_date <> '' AND warranty_expires_date >= :today ORDER BY warranty_expires_date LIMIT 3"
+    },
+    "display": { "template": "list", "title": "title", "subtitle": "subtitle", "when": "expires_on" }
+  },
   "resource_limits": {
     "max_db_bytes": 52428800,
     "max_file_bytes": 10485760,
