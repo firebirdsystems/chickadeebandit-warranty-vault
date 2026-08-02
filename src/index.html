@@ -103,6 +103,22 @@ const CONTEXT = window.__CONTEXT_URL ?? "";
 const DB = window.__DB_URL ?? "";
 const DOCS = window.__DOCS_URL ?? "";
 const HUB_MEMBER = window.__CURRENT_MEMBER ?? null;
+
+const EVENTS = window.__EVENTS_URL ?? "";
+
+async function publishEvent(type, subjectId, payload = {}) {
+  if (!EVENTS) return;
+  try {
+    await fetch(EVENTS, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, subject_id: subjectId, payload }),
+    });
+  } catch {
+    // Best-effort: the row is already written, so a failed publish is not fatal.
+  }
+}
+
 const files = createFilesHelper(window.__FILES_URL ?? "");
 
 let members = [];
@@ -186,6 +202,13 @@ async function saveItem(fields, existingId) {
         "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, receipt_file_id, receipt_doc_id, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [row.id, row.name, row.category, row.purchase_date, row.price_cents, row.retailer, row.warranty_months, row.warranty_expires_date, row.serial_number, row.notes, row.receipt_file_id, row.receipt_doc_id, row.created_by, now, now],
       );
+      // warranty_expires_date is the point of the event: it lets a rule put the
+      // expiry on the calendar or open a maintenance task before cover lapses.
+      await publishEvent("warranty.item_added", row.id, {
+        category: row.category,
+        purchase_date: row.purchase_date,
+        warranty_expires_date: row.warranty_expires_date,
+      });
     } catch (e) { items = items.filter((i) => i.id !== row.id); showError(e.message); }
   }
 }

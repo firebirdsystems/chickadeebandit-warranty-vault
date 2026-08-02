@@ -17,6 +17,55 @@
     "requires_approval": false
   },
   "storage": "db",
+  "automation_actions": {
+    "add_item": {
+      "title": "Track a warranty",
+      "description": "Start tracking a purchase's warranty when another app's event fires — an appliance bought, a tool registered, equipment added elsewhere.",
+      "params": {
+        "created_by": {
+          "type": "member",
+          "label": "Added by",
+          "required": true
+        },
+        "name": {
+          "type": "text",
+          "label": "What was bought",
+          "required": true
+        },
+        "category": {
+          "type": "text",
+          "label": "Category",
+          "default": "other",
+          "options": ["electronics", "appliances", "furniture", "tools", "outdoor", "other"]
+        },
+        "retailer": {
+          "type": "text",
+          "label": "Retailer",
+          "default": ""
+        }
+      },
+      "dedupe": {
+        "table": "items",
+        "column": "source_event_id"
+      },
+      "steps": [
+        {
+          "op": "insert",
+          "table": "items",
+          "values": {
+            "id": "$uuid",
+            "name": ":name",
+            "category": ":category",
+            "retailer": ":retailer",
+            "created_by": ":created_by",
+            "created_at": "$now",
+            "updated_at": "$now",
+            "source_event_id": "$event_id"
+          }
+        }
+      ]
+    }
+  },
   "db_plaintext_columns": ["purchase_date", "warranty_expires_date"],
     "member_references": {
       "items": {
@@ -35,6 +84,10 @@
   "file_acls": {
     "write": { "require_role": "adult" },
     "read": "document_acl"
+  },
+  "publishes": ["warranty.item_added"],
+  "publish_acls": {
+    "warranty.item_added": { "require_role": "adult" }
   },
   "nav": { "label": "Warranties" },
   "agenda": {
