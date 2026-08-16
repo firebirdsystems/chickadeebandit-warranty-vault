@@ -1,16 +1,26 @@
 {
   "id": "warranty-vault",
   "name": "Warranty Vault",
-  "version": "1.0.1",
-  "description": "A receipt and warranty vault for the things you own — purchase dates, serial numbers, receipt photos, and a heads-up before each warranty runs out.",
+  "version": "1.1.0",
+  "description": "A receipt and warranty vault for the things you own \u2014 purchase dates, serial numbers, receipt photos, and a heads-up before each warranty runs out.",
   "entrypoint": "index.html",
   "runtime": "static",
   "category": "family",
-  "tags": ["warranty", "receipts", "purchases", "home", "documents"],
-  "icon": "🧾",
+  "tags": [
+    "warranty",
+    "receipts",
+    "purchases",
+    "home",
+    "documents"
+  ],
+  "icon": "\ud83e\uddfe",
   "data_access": {
-    "reads": ["family.members"],
-    "writes": ["family.documents"]
+    "reads": [
+      "family.members"
+    ],
+    "writes": [
+      "family.documents"
+    ]
   },
   "permissions": {
     "default_audience": "everyone",
@@ -20,7 +30,7 @@
   "automation_actions": {
     "add_item": {
       "title": "Track a warranty",
-      "description": "Start tracking a purchase's warranty when another app's event fires — an appliance bought, a tool registered, equipment added elsewhere.",
+      "description": "Start tracking a purchase's warranty when another app's event fires \u2014 an appliance bought, a tool registered, equipment added elsewhere.",
       "params": {
         "created_by": {
           "type": "member",
@@ -36,7 +46,14 @@
           "type": "text",
           "label": "Category",
           "default": "other",
-          "options": ["electronics", "appliances", "furniture", "tools", "outdoor", "other"]
+          "options": [
+            "electronics",
+            "appliances",
+            "furniture",
+            "tools",
+            "outdoor",
+            "other"
+          ]
         },
         "retailer": {
           "type": "text",
@@ -66,30 +83,48 @@
       ]
     }
   },
-  "db_plaintext_columns": ["purchase_date", "warranty_expires_date"],
-    "member_references": {
-      "items": {
-        "column": "created_by",
-        "on_removed": "keep"
-      }
-    },
+  "db_plaintext_columns": [
+    "purchase_date",
+    "warranty_expires_date"
+  ],
+  "member_references": {
+    "items": {
+      "column": "created_by",
+      "on_removed": "keep"
+    }
+  },
   "row_policies": {
     "items": {
       "kind": "adult_writable"
     }
   },
+  "delete_file_columns": {
+    "items": [
+      "receipt_file_id"
+    ]
+  },
   "document_acls": {
-    "write": { "require_role": "adult" }
+    "write": {
+      "require_role": "adult"
+    }
   },
   "file_acls": {
-    "write": { "require_role": "adult" },
+    "write": {
+      "require_role": "adult"
+    },
     "read": "document_acl"
   },
-  "publishes": ["warranty.item_added"],
+  "publishes": [
+    "warranty.item_added"
+  ],
   "publish_acls": {
-    "warranty.item_added": { "require_role": "adult" }
+    "warranty.item_added": {
+      "require_role": "adult"
+    }
   },
-  "nav": { "label": "Warranties" },
+  "nav": {
+    "label": "Warranties"
+  },
   "agenda": {
     "kind": "reminder",
     "label": "Warranty ends today",
@@ -103,7 +138,12 @@
       "kind": "sql",
       "query": "SELECT name AS title, category AS subtitle, warranty_expires_date AS expires_on FROM app_warranty_vault__items WHERE warranty_expires_date <> '' AND warranty_expires_date >= :today ORDER BY warranty_expires_date LIMIT 3"
     },
-    "display": { "template": "list", "title": "title", "subtitle": "subtitle", "when": "expires_on" }
+    "display": {
+      "template": "list",
+      "title": "title",
+      "subtitle": "subtitle",
+      "when": "expires_on"
+    }
   },
   "resource_limits": {
     "max_db_bytes": 52428800,
@@ -113,6 +153,8 @@
   "ai_access": {
     "allowed": true,
     "mode": "read",
-    "db_exports": ["items"]
+    "db_exports": [
+      "items"
+    ]
   }
 }

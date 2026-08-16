@@ -221,15 +221,15 @@ async function deleteItem(id) {
   items = items.filter((i) => i.id !== id);
   closeModal(); render();
   try {
-    // Document and file FIRST, row second. The row is the only record of the
-    // receipt's file id, and the storage reconciler only reaps R2 objects with
-    // no metadata row — so deleting the row first and dying before the file
-    // call (closed tab, dropped connection) leaked the bytes permanently
-    // against the household's quota. This order fails the other way instead:
-    // a surviving row with a dangling receipt id, which renders as "no
-    // receipt" and is deletable again.
+    // The receipt bytes go with the row: `manifest.delete_file_columns` has the
+    // hub read `receipt_file_id` off the doomed row and queue the R2 reclaim
+    // inside this DELETE's own transaction. That replaces the file-first
+    // ordering this used to need — the row was the only record of the file id,
+    // and the storage reconciler only reaps objects with NO metadata row, so
+    // deleting the row first and dying before the file call leaked the bytes
+    // permanently. Neither order can lose them now.
+    // The hub document is still its own lane and still goes first.
     if (item?.receipt_doc_id && DOCS) await fetch(`${DOCS}/${encodeURIComponent(item.receipt_doc_id)}`, { method: "DELETE" }).catch(() => {});
-    if (item?.receipt_file_id) await files.delete(item.receipt_file_id).catch(() => {});
     await db("DELETE FROM app_warranty_vault__items WHERE id = ?", [id]);
   } catch (e) { items = prev; showError(e.message); }
 }
