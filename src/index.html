@@ -204,10 +204,15 @@ async function saveItem(fields, existingId) {
       );
       // warranty_expires_date is the point of the event: it lets a rule put the
       // expiry on the calendar or open a maintenance task before cover lapses.
+      // name and created_by ride along so a rule can catalogue the thing itself
+      // (home inventory wants both, and neither is more private than the
+      // agenda and glance queries that already show name household-wide).
       await publishEvent("warranty.item_added", row.id, {
+        name: row.name,
         category: row.category,
         purchase_date: row.purchase_date,
         warranty_expires_date: row.warranty_expires_date,
+        created_by: row.created_by,
       });
     } catch (e) { items = items.filter((i) => i.id !== row.id); showError(e.message); }
   }
