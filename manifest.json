@@ -27,6 +27,9 @@
     "requires_approval": false
   },
   "storage": "db",
+  "preload": {
+    "items": {"sql": "SELECT id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, receipt_file_id, receipt_doc_id, created_by, created_at, updated_at FROM app_warranty_vault__items"}
+  },
   "automation_actions": {
     "add_item": {
       "title": "Track a warranty",
