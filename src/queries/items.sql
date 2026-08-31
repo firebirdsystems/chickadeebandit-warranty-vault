@@ -16,3 +16,7 @@ SELECT
 FROM app_warranty_vault__items
 ORDER BY (warranty_expires_date = ''), warranty_expires_date
 LIMIT 300
+-- app_warranty_vault__items_expiry_ordered_idx indexes this ORDER BY as an
+-- expression index. The planner matches index expressions structurally, so
+-- rewording `(warranty_expires_date = '')` here silently drops back to a full
+-- scan and a temp b-tree — change the migration with it.
