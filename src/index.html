@@ -93,7 +93,18 @@
 </div>
 
 <script type="module">
-import { esc, isAdult, hubConfirm, fmtMoney, createFilesHelper, searchMatch } from "/hub-sdk.js";
+import { esc, isAdult, hubConfirm, fmtMoney, createFilesHelper, searchMatch, hubToday } from "/hub-sdk.js";
+
+// The household's calendar day as a Date, for the pure helpers in logic.js.
+// Those helpers default their date parameter to `new Date()` — the VIEWER
+// DEVICE's calendar — but they compare it against dates STORED on the household
+// calendar, which is what every server-side surface (glance, kiosk, cron,
+// `:today` in declared SQL) reports. Near midnight, or for a member in another
+// timezone, the two name different days. logic.js stays pure and SDK-free, so
+// the household day is supplied here. Noon keeps a DST shift from tipping it
+// into an adjacent day.
+const hubDay = () => new Date(`${hubToday()}T12:00:00`);
+
 import {
   CATEGORIES, categoryMeta, warrantyExpiryDate, warrantyStatus, warrantyLabel,
   sortedItems, parseMoneyToCents, searchableFields,
@@ -290,7 +301,7 @@ function renderItem(i) {
         ${i.notes ? `<div class="row-meta">${esc(i.notes)}</div>` : ""}
       </div>
       <div class="row-side">
-        <span class="pill ${esc(status)}">${esc(warrantyLabel(i))}</span>
+        <span class="pill ${esc(status)}">${esc(warrantyLabel(i, hubDay()))}</span>
         <span>
           ${i.receipt_file_id ? `<a class="receipt-link" href="${esc(files.url(i.receipt_file_id))}" target="_blank" rel="noopener">Receipt</a>` : ""}
           ${canManage() ? `<button class="edit-link" data-edit="${esc(i.id)}">Edit</button>` : ""}
@@ -303,7 +314,7 @@ function render() {
   const root = document.getElementById("root");
   root.className = "app-root";
   const q = query.trim();
-  const list = sortedItems(items).filter((i) =>
+  const list = sortedItems(items, hubDay()).filter((i) =>
     !q || searchMatch(q, searchableFields(i)));
   root.innerHTML = `
     <div class="topbar">
