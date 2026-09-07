@@ -118,13 +118,61 @@
     "read": "document_acl"
   },
   "publishes": [
-    "warranty.item_added"
+    "warranty.item_added",
+    "warranty.expiry_scheduled",
+    "warranty.expiry_cancelled"
   ],
   "publish_acls": {
     "warranty.item_added": {
       "require_role": "adult"
+    },
+    "warranty.expiry_scheduled": {
+      "require_role": "adult"
+    },
+    "warranty.expiry_cancelled": {
+      "require_role": "adult"
     }
   },
+  "suggested_automations": [
+    {
+      "title": "Put each warranty's last day on the calendar",
+      "description": "When an item is added with a warranty, or its cover length is corrected, put the day the warranty runs out on the household calendar. A claim is only worth making while the cover still stands, and the calendar is where the household already looks. Editing the warranty later moves the entry that is already there instead of adding a second one.",
+      "trigger_event": "warranty.expiry_scheduled",
+      "target_app_id": "calendar",
+      "action_id": "create_event",
+      "param_map": {
+        "title": {
+          "kind": "payload_field",
+          "value": "review_title"
+        },
+        "event_date": {
+          "kind": "payload_field",
+          "value": "warranty_expires_date"
+        },
+        "description": {
+          "kind": "payload_field",
+          "value": "summary"
+        },
+        "source_ref_id": {
+          "kind": "payload_field",
+          "value": "source_ref_id"
+        }
+      }
+    },
+    {
+      "title": "Take a warranty's last day back off the calendar",
+      "description": "The other half of the rule above, and it only does anything if you have that one. When an item is deleted, or its warranty is cleared, the calendar entry it put there stops showing \u2014 instead of standing forever as cover on something the household no longer owns. Add both, or the entry outlives the item.",
+      "trigger_event": "warranty.expiry_cancelled",
+      "target_app_id": "calendar",
+      "action_id": "retract_dated_event",
+      "param_map": {
+        "source_ref_id": {
+          "kind": "payload_field",
+          "value": "source_ref_id"
+        }
+      }
+    }
+  ],
   "nav": {
     "label": "Warranties"
   },
