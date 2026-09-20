@@ -1,5 +1,7 @@
 # Warranty Vault
 
+A [Chickadee Bandit](https://chickadeebandit.com/app-library/warranty-vault) app.
+
 Purchases, receipt photos, serial numbers, and warranty expiry tracking —
 "when did we buy the dishwasher and is it still covered?"
 
