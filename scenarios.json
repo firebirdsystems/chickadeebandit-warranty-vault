@@ -1,0 +1,81 @@
+{
+  "scenarios": [
+    {
+      "name": "the whole household can look items up, but only adults add, edit or delete them",
+      "members": { "parent": "adult", "kid": "child" },
+      "steps": [
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "params": ["it1", "LG Dishwasher", "appliances", "2025-06-01", 64900, 24, "2027-06-01", "SN-123", "{{parent}}", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "kid",
+          "sql": "INSERT INTO app_warranty_vault__items (id, name, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+          "params": ["it2", "Game console", "{{kid}}", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"],
+          "expect": { "status": 403 }
+        },
+        {
+          "action": "db",
+          "as": "kid",
+          "sql": "UPDATE app_warranty_vault__items SET warranty_expires_date = '2099-01-01' WHERE id = 'it1'",
+          "expect": { "status": 403 }
+        },
+        {
+          "action": "db",
+          "as": "kid",
+          "sql": "DELETE FROM app_warranty_vault__items WHERE id = 'it1'",
+          "expect": { "status": 403 }
+        },
+        {
+          "action": "db",
+          "as": "kid",
+          "sql": "SELECT id, name, warranty_expires_date FROM app_warranty_vault__items",
+          "expect": { "status": 200, "rowCount": 1, "rowsContain": [{ "id": "it1", "name": "LG Dishwasher", "warranty_expires_date": "2027-06-01" }] }
+        }
+      ]
+    },
+    {
+      "name": "the items AI export returns every item with its price and expiry",
+      "members": { "parent": "adult" },
+      "steps": [
+        {
+          "action": "seedRaw",
+          "sql": "INSERT INTO app_warranty_vault__items (id, name, purchase_date, price_cents, warranty_months, warranty_expires_date, created_by, created_at, updated_at) VALUES ('it_none', 'Old chair', '2020-01-01', NULL, NULL, '', 'p', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'), ('it_soon', 'Blender', '2025-03-01', 8999, 12, '2026-03-01', 'p', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
+        },
+        {
+          "action": "named",
+          "as": "parent",
+          "kind": "query",
+          "name": "items",
+          "expect": { "status": 200, "rowCount": 2, "rowsContain": [{ "id": "it_soon", "name": "Blender", "price_cents": 8999, "warranty_expires_date": "2026-03-01" }, { "id": "it_none", "warranty_expires_date": "" }] }
+        }
+      ]
+    },
+    {
+      "name": "only an adult may publish warranty events",
+      "members": { "parent": "adult", "kid": "child" },
+      "steps": [
+        {
+          "action": "publish",
+          "as": "kid",
+          "type": "warranty.item_added",
+          "subject_id": "it1",
+          "payload": { "name": "LG Dishwasher" },
+          "expect": { "status": 403 }
+        },
+        {
+          "action": "publish",
+          "as": "parent",
+          "type": "warranty.item_added",
+          "subject_id": "it1",
+          "payload": { "name": "LG Dishwasher" },
+          "expect": { "status": 201 }
+        }
+      ]
+    }
+  ]
+}
