@@ -4,18 +4,18 @@
  */
 
 export const CATEGORIES = [
-  { value: "electronics", label: "Electronics", icon: "📱" },
-  { value: "appliances",  label: "Appliances",  icon: "🫧" },
-  { value: "furniture",   label: "Furniture",   icon: "🛋️" },
-  { value: "tools",       label: "Tools",       icon: "🛠️" },
-  { value: "outdoor",     label: "Outdoor",     icon: "🌳" },
-  { value: "other",       label: "Other",       icon: "📦" },
+  { value: "electronics", label: "Electronics", glyph: "phone" },
+  { value: "appliances",  label: "Appliances",  glyph: "plug" },
+  { value: "furniture",   label: "Furniture",   glyph: "sofa" },
+  { value: "tools",       label: "Tools",       glyph: "wrench" },
+  { value: "outdoor",     label: "Outdoor",     glyph: "sprout" },
+  { value: "other",       label: "Other",       glyph: "box" },
 ];
 
 const CAT_BY_VALUE = new Map(CATEGORIES.map((c) => [c.value, c]));
 
 export function categoryMeta(v) {
-  return CAT_BY_VALUE.get(v) ?? { value: "other", label: "Other", icon: "📦" };
+  return CAT_BY_VALUE.get(v) ?? { value: "other", label: "Other", glyph: "box" };
 }
 
 function atMidnight(d) {

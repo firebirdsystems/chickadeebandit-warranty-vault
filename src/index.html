@@ -93,7 +93,7 @@
 </div>
 
 <script type="module">
-import { esc, isAdult, hubConfirm, fmtMoney, createFilesHelper, searchMatch, hubToday } from "/hub-sdk.js";
+import { esc, isAdult, hubConfirm, fmtMoney, createFilesHelper, searchMatch, hubToday, glyph } from "/hub-sdk.js";
 
 // The household's calendar day as a Date, for the pure helpers in logic.js.
 // Those helpers default their date parameter to `new Date()` — the VIEWER
@@ -338,7 +338,7 @@ function renderItem(i) {
   ].filter(Boolean).join(" · ");
   return `
     <div class="row">
-      <div class="row-icon" aria-hidden="true">${cat.icon}</div>
+      <div class="row-icon" aria-hidden="true">${glyph(cat.glyph)}</div>
       <div class="row-body">
         <div class="row-title">${esc(i.name)}</div>
         <div class="row-meta">${metaBits}</div>
@@ -363,7 +363,7 @@ function render() {
   root.innerHTML = `
     <div class="topbar">
       <div>
-        <h1>🧾 Warranty Vault</h1>
+        <h1>${glyph("receipt")} Warranty Vault</h1>
         <p class="muted tiny">What you bought, when, and how long it's covered.</p>
       </div>
       ${canManage() ? `<button class="btn" data-add>+ Add item</button>` : ""}
@@ -400,7 +400,7 @@ function closeModal() { modalEl?.remove(); modalEl = null; }
 
 function openEditor(existing) {
   const i = existing ?? null;
-  const catOptions = CATEGORIES.map((c) => `<option value="${c.value}" ${i?.category === c.value ? "selected" : ""}>${c.icon} ${c.label}</option>`).join("");
+  const catOptions = CATEGORIES.map((c) => `<option value="${c.value}" ${i?.category === c.value ? "selected" : ""}>${c.label}</option>`).join("");
   const canUpload = !!window.__FILES_URL;
   openModal(`
     <h2>${i ? "Edit item" : "Add item"}</h2>
