@@ -1,0 +1,339 @@
+{
+ "seed": [
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-340 days'), 74900, ?, 12, date('now','-340 days','+12 months'), ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-1",
+    "LG Dishwasher",
+    "appliances",
+    "Home Depot",
+    "LG-DW-48213907",
+    "Extended plan declined.",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-700 days'), 89900, ?, 24, date('now','-700 days','+24 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-2",
+    "Samsung 55 inch TV",
+    "electronics",
+    "Best Buy",
+    "SM55Q-7719204",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-90 days'), 15900, ?, 36, date('now','-90 days','+36 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-3",
+    "Bosch Cordless Drill",
+    "tools",
+    "Lowe's",
+    "BSH-3301875",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-715 days'), 59900, ?, 24, date('now','-715 days','+24 months'), ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-4",
+    "Dyson V11 Vacuum",
+    "appliances",
+    "Target",
+    "DY-V11-662019",
+    "Battery replaced under warranty once.",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-400 days'), 64900, ?, 120, date('now','-400 days','+120 months'), ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-5",
+    "Weber Gas Grill",
+    "outdoor",
+    "Ace Hardware",
+    "WB-GEN-208841",
+    "Ten years on the cookbox, two on burners.",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-355 days'), 119900, ?, 12, date('now','-355 days','+12 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-6",
+    "MacBook Air",
+    "electronics",
+    "Apple",
+    "C02XK4MNP3",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, notes, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-200 days'), 184900, ?, 60, date('now','-200 days','+60 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-7",
+    "Sectional Sofa",
+    "furniture",
+    "West Elm",
+    "Frame warranty only.",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-1000 days'), 139900, ?, 12, date('now','-1000 days','+12 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-8",
+    "Whirlpool Refrigerator",
+    "appliances",
+    "Home Depot",
+    "WRF-5521-88013",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-170 days'), 54900, ?, 60, date('now','-170 days','+60 months'), ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-9",
+    "Ego Lawn Mower",
+    "outdoor",
+    "Lowe's",
+    "EGO-LM21-40177",
+    "Battery is covered for three years.",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-30 days'), 34900, ?, 12, date('now','-30 days','+12 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-30 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-30 days'))",
+   "params": [
+    "wv-10",
+    "Sony Headphones",
+    "electronics",
+    "Amazon",
+    "SNY-WH-9038122",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-520 days'), 42900, ?, 12, date('now','-520 days','+12 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-11",
+    "KitchenAid Stand Mixer",
+    "appliances",
+    "Williams Sonoma",
+    "KA-KSM-771204",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, notes, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-1200 days'), 109900, ?, 120, date('now','-1200 days','+120 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-12",
+    "Queen Mattress",
+    "furniture",
+    "Mattress Firm",
+    "Keep the law tag attached.",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-260 days'), 59900, ?, 36, date('now','-260 days','+36 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-13",
+    "DeWalt Table Saw",
+    "tools",
+    "Home Depot",
+    "DW-7491-553820",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-720 days'), 24900, ?, 24, date('now','-720 days','+24 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-14",
+    "Nest Thermostat",
+    "electronics",
+    "Google Store",
+    "NST-09AA01AC3319",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-450 days'), 79900, ?, 12, date('now','-450 days','+12 months'), ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-15",
+    "Patio Dining Set",
+    "outdoor",
+    "Costco",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-350 days'), 9900, ?, 12, date('now','-350 days','+12 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-16",
+    "Instant Pot",
+    "appliances",
+    "Target",
+    "IP-DUO-6620841",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, notes, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-60 days'), 21900, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-17",
+    "Kids' Desk and Chair",
+    "furniture",
+    "IKEA",
+    "No warranty, receipt kept for returns.",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-800 days'), 32900, ?, 60, date('now','-800 days','+60 months'), ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-18",
+    "Garage Door Opener",
+    "other",
+    "Lowe's",
+    "CHM-B4505-11782",
+    "Motor lifetime, parts five years.",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-375 days'), 17900, ?, 12, date('now','-375 days','+12 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-19",
+    "Canon Printer",
+    "electronics",
+    "Staples",
+    "CN-TS83-209911",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-1500 days'), 112000, ?, 72, date('now','-1500 days','+72 months'), ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-20",
+    "Water Heater",
+    "appliances",
+    "Local plumber",
+    "RH-XE50-880231",
+    "Installed by Brightside Plumbing.",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-150 days'), 39900, ?, 12, date('now','-150 days','+12 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-21",
+    "Robot Vacuum",
+    "electronics",
+    "Amazon",
+    "RV-S8-4471902",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-610 days'), 34900, ?, 24, date('now','-610 days','+24 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-22",
+    "Chest Freezer",
+    "appliances",
+    "Costco",
+    "FR-CF7-331804",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-20 days'), 19900, ?, 48, date('now','-20 days','+48 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-20 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-20 days'))",
+   "params": [
+    "wv-23",
+    "Leaf Blower",
+    "outdoor",
+    "Ace Hardware",
+    "STL-BGA-77120",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-280 days'), 49900, ?, 84, date('now','-280 days','+84 months'), ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-24",
+    "Standing Desk",
+    "furniture",
+    "Uplift",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-358 days'), 12900, ?, 12, date('now','-358 days','+12 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-25",
+    "Air Fryer",
+    "appliances",
+    "Target",
+    "NJ-AF161-90213",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-480 days'), 29900, ?, 24, date('now','-480 days','+24 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-26",
+    "Pressure Washer",
+    "tools",
+    "Home Depot",
+    "RYB-2300-66418",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-5 days'), 17900, ?, 12, date('now','-5 days','+12 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-5 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-5 days'))",
+   "params": [
+    "wv-27",
+    "Smart Doorbell",
+    "electronics",
+    "Best Buy",
+    "RNG-DB4-1180273",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-900 days'), 26900, ?, 300, date('now','-900 days','+300 months'), ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-28",
+    "Sewing Machine",
+    "other",
+    "Joann",
+    "BR-CS6000-44172",
+    "Twenty five year limited warranty.",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-330 days'), 69900, ?, 12, date('now','-330 days','+12 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-29",
+    "Espresso Machine",
+    "appliances",
+    "Sur La Table",
+    "BRV-BES870-55201",
+    "{{me}}"
+   ]
+  },
+  {
+   "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, date('now','-1100 days'), 44900, ?, 60, date('now','-1100 days','+60 months'), ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'), strftime('%Y-%m-%dT%H:%M:%fZ','now','-45 days'))",
+   "params": [
+    "wv-30",
+    "Bookshelf Speakers",
+    "electronics",
+    "Crutchfield",
+    "KEF-Q150-20931",
+    "{{me}}"
+   ]
+  }
+ ]
+}
