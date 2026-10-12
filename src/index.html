@@ -84,6 +84,8 @@
     .modal-actions { display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end; }
     .modal-left { margin-right: auto; }
     @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
+    .load-error { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--hub-tint-danger, #fee2e2); color: var(--hub-tint-danger-fg, #b91c1c); font-size: 0.9rem; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+    .load-error-retry { background: none; border: 1px solid currentColor; border-radius: 8px; padding: 5px 10px; font: inherit; font-weight: 600; color: inherit; cursor: pointer; flex-shrink: 0; }
   </style>
   <base href="/run/warranty-vault/">
 </head>
@@ -191,8 +193,8 @@ async function db(sql, params = []) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sql, params }),
   });
-  const json = await res.json();
-  if (json.error) throw new Error(json.error);
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json || typeof json !== "object" || json.error) throw new Error(json?.error || "Couldn’t reach the hub. Try again.");
   return json;
 }
 
@@ -201,10 +203,13 @@ async function loadMembers() {
   if (!CONTEXT) {
     members = [{ id: "demo-1", name: "Alex", role: "adult" }];
   } else {
-    try {
-      const res = await fetch(`${CONTEXT}?keys=family.members`);
-      members = ((await res.json())["family.members"]) ?? [];
-    } catch { members = []; }
+    // A roster that cannot be read is a failed load, not an empty household.
+    const res = await fetch(`${CONTEXT}?keys=family.members`);
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json || typeof json !== "object") throw new Error("Couldn’t reach the hub. Try again.");
+    // A 200 that names the roster in `$errors` is the hub failing to read it.
+    if (Array.isArray(json.$errors) && json.$errors.includes("family.members")) throw new Error("Couldn’t reach the hub. Try again.");
+    members = json["family.members"] ?? [];
   }
   me = HUB_MEMBER ?? members[0] ?? { id: "guest", name: "Guest", role: "adult" };
 }
@@ -221,17 +226,31 @@ async function loadItems() {
   items = res.rows ?? [];
 }
 
+// True from a failed first load until a load succeeds. While it is, the page
+// shows the banner in place of the vault and offers no "+ Add item".
+let loadFailed = false;
 async function refresh() {
   error = "";
   try {
     await Promise.all([loadMembers(), loadItems()]);
+    loadFailed = false;
     render();
-  } catch (e) { error = e.message; render(); }
+  } catch { loadFailed = true; render(); }
 }
 
-function showError(msg) { error = msg; render(); }
+// An open dialog covers the page banner, so the message goes inside the dialog.
+function showModalError(m) {
+  const box = modalEl?.querySelector(".modal");
+  if (!box) return false;
+  let el = box.querySelector(".error");
+  if (!el) { el = document.createElement("div"); el.className = "error"; el.setAttribute("role", "alert"); box.prepend(el); }
+  el.textContent = m;
+  return true;
+}
+function showError(msg) { if (showModalError(msg)) return; error = msg; render(); }
 
 /* ── Mutations ─────────────────────────────────────────────────────────────── */
+/** Answers true once the hub has stored the item, false when the write failed. */
 async function saveItem(fields, existingId) {
   const now = nowIso();
   if (existingId) {
@@ -254,7 +273,8 @@ async function saveItem(fields, existingId) {
       // spend an automation run rewriting an entry that is already correct.
       const next = idx !== -1 ? items[idx] : { ...fields, id: existingId };
       await publishSaveEvents(prev, next);
-    } catch (e) { if (idx !== -1 && prev) items[idx] = prev; showError(e.message); }
+      return true;
+    } catch (e) { if (idx !== -1 && prev) items[idx] = prev; showError(e.message); return false; }
   } else {
     const row = { id: crypto.randomUUID(), ...fields, created_by: me.id, created_at: now, updated_at: now };
     items = [...items, row];
@@ -265,7 +285,8 @@ async function saveItem(fields, existingId) {
         [row.id, row.name, row.category, row.purchase_date, row.price_cents, row.retailer, row.warranty_months, row.warranty_expires_date, row.serial_number, row.notes, row.receipt_file_id, row.receipt_doc_id, row.created_by, now, now],
       );
       await publishSaveEvents(null, row);
-    } catch (e) { items = items.filter((i) => i.id !== row.id); showError(e.message); }
+      return true;
+    } catch (e) { items = items.filter((i) => i.id !== row.id); showError(e.message); return false; }
   }
 }
 
@@ -357,6 +378,17 @@ function renderItem(i) {
 function render() {
   const root = document.getElementById("root");
   root.className = "app-root";
+  if (loadFailed) {
+    root.innerHTML = `
+    <div class="topbar">
+      <div>
+        <h1>${glyph("receipt")} Warranty Vault</h1>
+        <p class="muted tiny">What you bought, when, and how long it's covered.</p>
+      </div>
+    </div>
+    <div class="load-error" data-testid="load-error" role="alert"><span>Couldn’t load the vault.</span> <button type="button" class="load-error-retry" data-testid="load-retry">Try again</button></div>`;
+    return;
+  }
   const q = query.trim();
   const list = sortedItems(items, hubDay()).filter((i) =>
     !q || searchMatch(q, searchableFields(i)));
@@ -448,16 +480,13 @@ function openEditor(existing) {
     let receiptDocId = i?.receipt_doc_id ?? "";
     const fileInput = document.getElementById("f-receipt");
     const file = fileInput?.files?.[0];
+    let replaced = null;
     try {
       if (file) {
-        const oldFileId = receiptFileId;
-        const oldDocId = receiptDocId;
         const up = await uploadReceipt(file, name);
+        replaced = { fileId: receiptFileId, docId: receiptDocId };
         receiptFileId = up.fileId;
         receiptDocId = up.docId;
-        // Best-effort cleanup of the replaced receipt.
-        if (oldDocId && DOCS) fetch(`${DOCS}/${encodeURIComponent(oldDocId)}`, { method: "DELETE" }).catch(() => {});
-        if (oldFileId) files.delete(oldFileId).catch(() => {});
       }
     } catch (err) {
       if (btn) { btn.disabled = false; btn.textContent = i ? "Save" : "Add"; }
@@ -465,7 +494,7 @@ function openEditor(existing) {
       return;
     }
 
-    saveItem({
+    const saved = await saveItem({
       name,
       category: document.getElementById("f-cat").value,
       purchase_date: purchaseDate,
@@ -477,7 +506,14 @@ function openEditor(existing) {
       notes: document.getElementById("f-notes").value.trim(),
       receipt_file_id: receiptFileId,
       receipt_doc_id: receiptDocId,
-    }, i?.id ?? null).catch((err) => showError(err.message));
+    }, i?.id ?? null).catch((err) => { showError(err.message); return false; });
+    // The replaced receipt goes only once the item names the new one: after a
+    // failed save the item still points at it. Best-effort; a failure here
+    // leaves the save standing.
+    if (saved && replaced) {
+      if (replaced.docId && DOCS) fetch(`${DOCS}/${encodeURIComponent(replaced.docId)}`, { method: "DELETE" }).catch(() => {});
+      if (replaced.fileId) files.delete(replaced.fileId).catch(() => {});
+    }
   });
 }
 
@@ -485,6 +521,7 @@ function openEditor(existing) {
 document.addEventListener("click", (e) => {
   const t = e.target.closest("button");
   if (!t) return;
+  if (t.matches('[data-testid="load-retry"]')) { refresh(); return; }
   if (t.hasAttribute("data-add")) { openEditor(null); return; }
   if (t.hasAttribute("data-edit")) { openEditor(items.find((i) => i.id === t.getAttribute("data-edit"))); return; }
   if (t.hasAttribute("data-cancel")) { closeModal(); return; }
