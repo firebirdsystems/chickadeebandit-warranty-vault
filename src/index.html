@@ -248,6 +248,8 @@ function showModalError(m) {
   return true;
 }
 function showError(msg) { if (showModalError(msg)) return; error = msg; render(); }
+// A failed write is said in this app's words; the error itself goes to the console.
+function writeFailed(e, line) { console.error("[warranty-vault]", e); showError(line); }
 
 /* ── Mutations ─────────────────────────────────────────────────────────────── */
 /** Answers true once the hub has stored the item, false when the write failed. */
@@ -274,7 +276,7 @@ async function saveItem(fields, existingId) {
       const next = idx !== -1 ? items[idx] : { ...fields, id: existingId };
       await publishSaveEvents(prev, next);
       return true;
-    } catch (e) { if (idx !== -1 && prev) items[idx] = prev; showError(e.message); return false; }
+    } catch (e) { if (idx !== -1 && prev) items[idx] = prev; writeFailed(e, "Couldn’t save the item — try again."); return false; }
   } else {
     const row = { id: crypto.randomUUID(), ...fields, created_by: me.id, created_at: now, updated_at: now };
     items = [...items, row];
@@ -286,7 +288,7 @@ async function saveItem(fields, existingId) {
       );
       await publishSaveEvents(null, row);
       return true;
-    } catch (e) { items = items.filter((i) => i.id !== row.id); showError(e.message); return false; }
+    } catch (e) { items = items.filter((i) => i.id !== row.id); writeFailed(e, "Couldn’t add the item — try again."); return false; }
   }
 }
 
@@ -312,7 +314,7 @@ async function deleteItem(id) {
     // entry down with it. Only if it ever announced one: an item with no
     // warranty never put anything there to retract.
     if (item && wantsExpiryEntry(item)) await retractExpiry(item, "deleted");
-  } catch (e) { items = prev; showError(e.message); }
+  } catch (e) { items = prev; writeFailed(e, "Couldn’t delete the item — try again."); }
 }
 
 /** Upload a receipt file and create the hub document record. */
@@ -490,7 +492,11 @@ function openEditor(existing) {
       }
     } catch (err) {
       if (btn) { btn.disabled = false; btn.textContent = i ? "Save" : "Add"; }
-      showError(`Receipt upload failed: ${err.message}`);
+      // A file the hub would not take (too large, a type it does not store, no
+      // storage left) is said in the hub's words; any other failure is not.
+      const refused = err?.status === 507 || (err?.status >= 400 && err?.status < 500);
+      if (refused && err.message) showError(`Receipt upload failed: ${err.message}`);
+      else writeFailed(err, "Couldn’t upload the receipt — try again.");
       return;
     }
 
@@ -506,7 +512,7 @@ function openEditor(existing) {
       notes: document.getElementById("f-notes").value.trim(),
       receipt_file_id: receiptFileId,
       receipt_doc_id: receiptDocId,
-    }, i?.id ?? null).catch((err) => { showError(err.message); return false; });
+    }, i?.id ?? null).catch((err) => { writeFailed(err, "Couldn’t save the item — try again."); return false; });
     // The replaced receipt goes only once the item names the new one: after a
     // failed save the item still points at it. Best-effort; a failure here
     // leaves the save standing.
