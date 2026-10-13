@@ -260,18 +260,29 @@ function writeFailed(e, line) { console.error("[warranty-vault]", e); showError(
 async function saveItem(fields, existingId, dlg) {
   const now = nowIso();
   if (existingId) {
+    let res;
     try {
-      await db(
+      res = await db(
         "UPDATE app_warranty_vault__items SET name=?, category=?, purchase_date=?, price_cents=?, retailer=?, warranty_months=?, warranty_expires_date=?, serial_number=?, notes=?, receipt_file_id=?, receipt_doc_id=?, updated_at=? WHERE id=?",
         [fields.name, fields.category, fields.purchase_date, fields.price_cents, fields.retailer, fields.warranty_months, fields.warranty_expires_date, fields.serial_number, fields.notes, fields.receipt_file_id, fields.receipt_doc_id, now, existingId],
       );
     } catch (e) { writeFailed(e, "Couldn’t save the item — try again."); return false; }
+    // The hub answers 200 with `changed: 0` when no row took the edit (the
+    // item was deleted meanwhile, or the write was refused). Nothing is
+    // stored, so the list is read again and the form stays open as typed.
+    if (res.changed === 0) {
+      await refresh();
+      const gone = !loadFailed && !items.some((i) => i.id === existingId);
+      showError(gone ? "This item is no longer in the vault." : "Couldn’t save the item — try again.");
+      return false;
+    }
     // Looked up after the write: the list may have been reloaded meanwhile.
     const idx = items.findIndex((i) => i.id === existingId);
     const prev = idx !== -1 ? items[idx] : null;
     if (idx !== -1) items[idx] = { ...items[idx], ...fields, updated_at: now };
     if (modalEl === dlg) closeModal();
-    render();
+    // The item is stored: a throw while redrawing must not report it as failed.
+    try { render(); } catch (e) { console.error("[warranty-vault]", e); }
     // Only after the UPDATE committed, and only when the edit touched
     // something the calendar entry is built from — a note-only edit would
     // otherwise spend an automation run rewriting an entry that is already
@@ -295,7 +306,8 @@ async function saveItem(fields, existingId, dlg) {
     } catch (e) { writeFailed(e, "Couldn’t add the item — try again."); return false; }
     items = [...items, row];
     if (modalEl === dlg) closeModal();
-    render();
+    // The item is stored: a throw while redrawing must not report it as failed.
+    try { render(); } catch (e) { console.error("[warranty-vault]", e); }
     await publishSaveEvents(null, row);
     return true;
   }
