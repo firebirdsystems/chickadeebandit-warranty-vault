@@ -252,43 +252,52 @@ function showError(msg) { if (showModalError(msg)) return; error = msg; render()
 function writeFailed(e, line) { console.error("[warranty-vault]", e); showError(line); }
 
 /* ── Mutations ─────────────────────────────────────────────────────────────── */
-/** Answers true once the hub has stored the item, false when the write failed. */
-async function saveItem(fields, existingId) {
+/**
+ * Answers true once the hub has stored the item, false when the write failed.
+ * The list changes and the form (`dlg`, the dialog it was sent from) closes
+ * only after the write is stored: a failed save leaves the form open as typed.
+ */
+async function saveItem(fields, existingId, dlg) {
   const now = nowIso();
   if (existingId) {
-    const idx = items.findIndex((i) => i.id === existingId);
-    const prev = idx !== -1 ? items[idx] : null;
-    if (idx !== -1) items[idx] = { ...items[idx], ...fields, updated_at: now };
-    closeModal(); render();
     try {
       await db(
         "UPDATE app_warranty_vault__items SET name=?, category=?, purchase_date=?, price_cents=?, retailer=?, warranty_months=?, warranty_expires_date=?, serial_number=?, notes=?, receipt_file_id=?, receipt_doc_id=?, updated_at=? WHERE id=?",
         [fields.name, fields.category, fields.purchase_date, fields.price_cents, fields.retailer, fields.warranty_months, fields.warranty_expires_date, fields.serial_number, fields.notes, fields.receipt_file_id, fields.receipt_doc_id, now, existingId],
       );
-      // Only after the UPDATE committed, and only when the edit touched
-      // something the calendar entry is built from — a note-only edit would
-      // otherwise spend an automation run rewriting an entry that is already
-      // correct. publishEvent swallows its own failures, so this can never
-      // roll the saved row back.
-      // Only after the UPDATE committed. saveEventPlan returns nothing for an
-      // edit that cannot move the calendar entry — a note-only save must not
-      // spend an automation run rewriting an entry that is already correct.
-      const next = idx !== -1 ? items[idx] : { ...fields, id: existingId };
-      await publishSaveEvents(prev, next);
-      return true;
-    } catch (e) { if (idx !== -1 && prev) items[idx] = prev; writeFailed(e, "Couldn’t save the item — try again."); return false; }
+    } catch (e) { writeFailed(e, "Couldn’t save the item — try again."); return false; }
+    // Looked up after the write: the list may have been reloaded meanwhile.
+    const idx = items.findIndex((i) => i.id === existingId);
+    const prev = idx !== -1 ? items[idx] : null;
+    if (idx !== -1) items[idx] = { ...items[idx], ...fields, updated_at: now };
+    if (modalEl === dlg) closeModal();
+    render();
+    // Only after the UPDATE committed, and only when the edit touched
+    // something the calendar entry is built from — a note-only edit would
+    // otherwise spend an automation run rewriting an entry that is already
+    // correct. publishEvent swallows its own failures, so this can never
+    // roll the saved row back.
+    // Only after the UPDATE committed. saveEventPlan returns nothing for an
+    // edit that cannot move the calendar entry — a note-only save must not
+    // spend an automation run rewriting an entry that is already correct.
+    // An item no longer in the list has nothing to announce: with no `prev`
+    // it would read as an insert.
+    if (idx === -1) return true;
+    await publishSaveEvents(prev, items[idx]);
+    return true;
   } else {
     const row = { id: crypto.randomUUID(), ...fields, created_by: me.id, created_at: now, updated_at: now };
-    items = [...items, row];
-    closeModal(); render();
     try {
       await db(
         "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, receipt_file_id, receipt_doc_id, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [row.id, row.name, row.category, row.purchase_date, row.price_cents, row.retailer, row.warranty_months, row.warranty_expires_date, row.serial_number, row.notes, row.receipt_file_id, row.receipt_doc_id, row.created_by, now, now],
       );
-      await publishSaveEvents(null, row);
-      return true;
-    } catch (e) { items = items.filter((i) => i.id !== row.id); writeFailed(e, "Couldn’t add the item — try again."); return false; }
+    } catch (e) { writeFailed(e, "Couldn’t add the item — try again."); return false; }
+    items = [...items, row];
+    if (modalEl === dlg) closeModal();
+    render();
+    await publishSaveEvents(null, row);
+    return true;
   }
 }
 
@@ -427,7 +436,8 @@ function openModal(html) {
   modalEl = document.createElement("div");
   modalEl.className = "overlay";
   modalEl.innerHTML = `<div class="modal">${html}</div>`;
-  modalEl.addEventListener("click", (e) => { if (e.target === modalEl) closeModal(); });
+  // A form whose item write is out stays put until the hub has answered.
+  modalEl.addEventListener("click", (e) => { if (e.target === modalEl && !modalEl.dataset.writing) closeModal(); });
   document.body.appendChild(modalEl);
 }
 function closeModal() { modalEl?.remove(); modalEl = null; }
@@ -465,8 +475,13 @@ function openEditor(existing) {
       </div>
     </form>`);
   modalEl.querySelector("[data-autofocus]")?.focus();
+  const dlg = modalEl;
+  // The receipt this form already sent, kept so that pressing save again after
+  // a failed save names the same file instead of storing a second copy.
+  let uploaded = null;
   modalEl.querySelector("#item-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (dlg.dataset.busy) return;
     const name = document.getElementById("f-name").value.trim();
     if (!name) { document.getElementById("f-name").focus(); return; }
     const priceRaw = document.getElementById("f-price").value.trim();
@@ -475,32 +490,24 @@ function openEditor(existing) {
     const purchaseDate = document.getElementById("f-date").value;
     const warrantyRaw = document.getElementById("f-warranty").value;
     const warrantyMonths = warrantyRaw ? Number(warrantyRaw) : null;
-    const btn = modalEl?.querySelector('button[type="submit"]');
-    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
-
-    let receiptFileId = i?.receipt_file_id ?? "";
-    let receiptDocId = i?.receipt_doc_id ?? "";
-    const fileInput = document.getElementById("f-receipt");
-    const file = fileInput?.files?.[0];
-    let replaced = null;
-    try {
-      if (file) {
-        const up = await uploadReceipt(file, name);
-        replaced = { fileId: receiptFileId, docId: receiptDocId };
-        receiptFileId = up.fileId;
-        receiptDocId = up.docId;
-      }
-    } catch (err) {
-      if (btn) { btn.disabled = false; btn.textContent = i ? "Save" : "Add"; }
-      // A file the hub would not take (too large, a type it does not store, no
-      // storage left) is said in the hub's words; any other failure is not.
-      const refused = err?.status === 507 || (err?.status >= 400 && err?.status < 500);
-      if (refused && err.message) showError(`Receipt upload failed: ${err.message}`);
-      else writeFailed(err, "Couldn’t upload the receipt — try again.");
-      return;
-    }
-
-    const saved = await saveItem({
+    const btn = dlg.querySelector('button[type="submit"]');
+    // While a save is out the form cannot be sent twice or deleted. Cancel
+    // still works through the receipt upload, which can be slow and is undone
+    // below; once the item itself is being written (`writing`) the form waits
+    // for the answer, so what the list shows and what is stored cannot part.
+    const setBusy = (on, writing = false) => {
+      dlg.dataset.busy = on ? "1" : "";
+      dlg.dataset.writing = writing ? "1" : "";
+      dlg.querySelectorAll('button[type="submit"], [data-delete]').forEach((b) => { b.disabled = on; });
+      dlg.querySelectorAll("[data-cancel]").forEach((b) => { b.disabled = writing; });
+      if (btn) btn.textContent = on ? "Saving…" : (i ? "Save" : "Add");
+      if (!on) btn?.focus();
+    };
+    setBusy(true);
+    dlg.querySelector(".error")?.remove();
+    // Every field is read before the first wait, so the row is the form as it
+    // stood when save was pressed.
+    const fields = {
       name,
       category: document.getElementById("f-cat").value,
       purchase_date: purchaseDate,
@@ -510,9 +517,46 @@ function openEditor(existing) {
       warranty_expires_date: warrantyExpiryDate(purchaseDate, warrantyMonths),
       serial_number: document.getElementById("f-serial").value.trim(),
       notes: document.getElementById("f-notes").value.trim(),
-      receipt_file_id: receiptFileId,
-      receipt_doc_id: receiptDocId,
-    }, i?.id ?? null).catch((err) => { writeFailed(err, "Couldn’t save the item — try again."); return false; });
+      receipt_file_id: i?.receipt_file_id ?? "",
+      receipt_doc_id: i?.receipt_doc_id ?? "",
+    };
+    const fileInput = document.getElementById("f-receipt");
+    const file = fileInput?.files?.[0];
+    let replaced = null;
+    try {
+      if (file) {
+        const same = uploaded && uploaded.file.name === file.name && uploaded.file.size === file.size && uploaded.file.lastModified === file.lastModified;
+        if (!same) {
+          const up = await uploadReceipt(file, name);
+          // Cancelled while the receipt was on its way: nothing is saved, and
+          // the copy just stored, which no item names, goes again. Best-effort.
+          if (modalEl !== dlg) {
+            if (up.docId && DOCS) fetch(`${DOCS}/${encodeURIComponent(up.docId)}`, { method: "DELETE" }).catch(() => {});
+            files.delete(up.fileId).catch(() => {});
+            return;
+          }
+          uploaded = { file, ...up };
+        }
+        replaced = { fileId: fields.receipt_file_id, docId: fields.receipt_doc_id };
+        fields.receipt_file_id = uploaded.fileId;
+        fields.receipt_doc_id = uploaded.docId;
+      }
+    } catch (err) {
+      // Cancelled meanwhile: there is no form left to say it on.
+      if (modalEl !== dlg) { console.error("[warranty-vault]", err); return; }
+      setBusy(false);
+      // A file the hub would not take (too large, a type it does not store, no
+      // storage left) is said in the hub's words; any other failure is not.
+      const refused = err?.status === 507 || (err?.status >= 400 && err?.status < 500);
+      if (refused && err.message) showError(`Receipt upload failed: ${err.message}`);
+      else writeFailed(err, "Couldn’t upload the receipt — try again.");
+      return;
+    }
+
+    setBusy(true, true);
+    const saved = await saveItem(fields, i?.id ?? null, dlg).catch((err) => { writeFailed(err, "Couldn’t save the item — try again."); return false; });
+    // A failed save leaves the form as typed, ready to be sent again.
+    if (!saved) setBusy(false);
     // The replaced receipt goes only once the item names the new one: after a
     // failed save the item still points at it. Best-effort; a failure here
     // leaves the save standing.
