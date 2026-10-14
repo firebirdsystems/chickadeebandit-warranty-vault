@@ -30,7 +30,7 @@ describe("deleteItem", () => {
   const body = client.slice(client.indexOf("async function deleteItem("), client.indexOf("/** Upload a receipt file"));
 
   it("declares the receipt file column so the hub reclaims it transactionally", () => {
-    expect(manifest.delete_file_columns?.items).toContain("receipt_file_id");
+    expect(manifest.file_columns?.items?.columns).toContain("receipt_file_id");
   });
 
   it("does not reclaim the receipt file from the client", () => {

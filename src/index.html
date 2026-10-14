@@ -329,9 +329,42 @@ async function saveItem(fields, existingId, dlg) {
       }
       if (!stored) { writeFailed(e, failureLine(e, ADD)); return false; }
       console.error("[warranty-vault]", e);
-      // Edited since that first try: what was stored is kept, and said so.
-      if (storedDiffers(stored, fields)) note = "Saved as first entered — check it and update what changed.";
       row = stored;
+      // Edited since that first try (a field changed, another receipt picked):
+      // the stored item takes the form as it stands now, as an ordinary edit.
+      // Should that edit fail too, the line says what was first entered is
+      // kept. Accepted gap: if this edit's own answer is lost as well, it may
+      // have landed anyway, and the line can then be wrong.
+      if (storedDiffers(stored, fields)) {
+        const edited = { ...stored, ...fields, updated_at: nowIso() };
+        let refused = false;
+        try {
+          const res = await db(
+            "UPDATE app_warranty_vault__items SET name=?, category=?, purchase_date=?, price_cents=?, retailer=?, warranty_months=?, warranty_expires_date=?, serial_number=?, notes=?, receipt_file_id=?, receipt_doc_id=?, updated_at=? WHERE id=?",
+            [edited.name, edited.category, edited.purchase_date, edited.price_cents, edited.retailer, edited.warranty_months, edited.warranty_expires_date, edited.serial_number, edited.notes, edited.receipt_file_id, edited.receipt_doc_id, edited.updated_at, id],
+          );
+          if (res.changed === 0) { refused = true; throw new Error("edit of the stored item changed nothing"); }
+          row = edited;
+          // The receipt the first try stored is named by no item now. Its bytes
+          // the hub reclaims with this UPDATE (`manifest.file_columns`); its
+          // document record is the app's own, and deleting it takes any bytes
+          // still left. Best-effort.
+          if (stored.receipt_doc_id && stored.receipt_doc_id !== edited.receipt_doc_id && DOCS) {
+            fetch(`${DOCS}/${encodeURIComponent(stored.receipt_doc_id)}`, { method: "DELETE" }).catch(() => {});
+          }
+        } catch (editErr) {
+          console.error("[warranty-vault]", editErr);
+          // Known not stored (`changed: 0`, or a status that is not a lost
+          // answer): the receipt picked since is named by no item, so its
+          // document goes. Unknown: the edit may have landed and named it, so
+          // it stays. Best-effort.
+          if ((refused || !outcomeUnknown(editErr)) && edited.receipt_doc_id
+              && edited.receipt_doc_id !== stored.receipt_doc_id && DOCS) {
+            fetch(`${DOCS}/${encodeURIComponent(edited.receipt_doc_id)}`, { method: "DELETE" }).catch(() => {});
+          }
+          note = "Saved as first entered — check it and update what changed.";
+        }
+      }
     }
     if (dlg) delete dlg.dataset.rowId;
     items = [...items.filter((x) => x.id !== row.id), row];
@@ -354,7 +387,7 @@ async function deleteItem(id) {
   items = items.filter((i) => i.id !== id);
   closeModal(); render();
   try {
-    // The receipt bytes go with the row: `manifest.delete_file_columns` has the
+    // The receipt bytes go with the row: `manifest.file_columns` has the
     // hub read `receipt_file_id` off the doomed row and queue the R2 reclaim
     // inside this DELETE's own transaction. That replaces the file-first
     // ordering this used to need — the row was the only record of the file id,

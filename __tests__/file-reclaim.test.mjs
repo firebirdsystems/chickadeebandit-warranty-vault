@@ -107,7 +107,7 @@ function declaredColumns() {
     declared.set(table, set);
     for (const column of [columns].flat().filter(Boolean)) set.add(column);
   };
-  for (const [table, columns] of Object.entries(manifest.delete_file_columns ?? {})) add(table, columns);
+  for (const [table, entry] of Object.entries(manifest.file_columns ?? {})) add(table, entry.columns);
   for (const cfg of Object.values(manifest.versioned_records ?? {})) {
     add(cfg.table, cfg.file_column);
     add(cfg.version_table, cfg.file_column);
@@ -126,9 +126,10 @@ describe("hub file reclaim", () => {
 
   it("names only real tables and columns", () => {
     const tables = appTableColumns();
-    for (const [table, columns] of Object.entries(manifest.delete_file_columns ?? {})) {
+    for (const [table, entry] of Object.entries(manifest.file_columns ?? {})) {
+      const columns = entry.columns ?? [];
       const names = tables.get(`${prefix}${table}`);
-      expect(names, `delete_file_columns.${table} has no CREATE TABLE`).toBeDefined();
+      expect(names, `file_columns.${table} has no CREATE TABLE`).toBeDefined();
       // The engine resolves the doomed rows by id before deleting them.
       expect(names.has("id"), `${table} needs an id column`).toBe(true);
       for (const column of columns) {
