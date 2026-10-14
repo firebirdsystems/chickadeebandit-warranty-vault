@@ -4,7 +4,8 @@ import {
   warrantyLabel, sortedItems, parseMoneyToCents, searchableFields,
   itemSourceRefId, wantsExpiryEntry, expiryRetractionReason, expiryInputsChanged,
   expiryReviewTitle, expirySummary, saveEventPlan, itemAddedPayload,
-  expiryScheduledPayload, expiryCancelledPayload,
+  expiryScheduledPayload, expiryCancelledPayload, failureLine,
+  outcomeUnknown, storedDiffers,
 } from "../src/logic.js";
 
 const FROM = new Date(2026, 6, 12, 9, 0, 0); // July 12, 2026 local
@@ -217,5 +218,61 @@ describe("saveEventPlan", () => {
     // The summary rides the household ICS feed out to Google and Apple.
     expect(JSON.stringify(payload)).not.toContain("LG-8842-A");
     expect(JSON.stringify(payload)).not.toContain("receipt in the drawer");
+  });
+});
+
+describe("failureLine", () => {
+  const o = { action: "save the item", thing: "item" };
+  const err = (props, message = "hub text") => Object.assign(new Error(message), props);
+  it("already there: by code, or the text as a fallback", () => {
+    expect(failureLine(err({ status: 400, code: "UNIQUE_CONSTRAINT" }), o)).toBe("That item already exists.");
+    expect(failureLine(err({ status: 400 }, "UNIQUE constraint failed: x.id"), o)).toBe("That item already exists.");
+  });
+  it("not allowed (403)", () => {
+    expect(failureLine(err({ status: 403 }), o)).toBe("You don’t have permission to save the item.");
+  });
+  it("storage full (507)", () => {
+    expect(failureLine(err({ status: 507 }), o)).toBe("The household’s storage is full — free up space first.");
+  });
+  it("removed: 404, or a re-read that found no row", () => {
+    expect(failureLine(err({ status: 404 }), o)).toBe("This item has been removed.");
+    expect(failureLine(null, { ...o, outcome: "removed" })).toBe("This item has been removed.");
+  });
+  it("changed by someone else: 409, or a re-read that found it changed", () => {
+    expect(failureLine(err({ status: 409 }), o)).toBe("This item was changed by someone else — check it first.");
+    expect(failureLine(null, { ...o, outcome: "changed" })).toBe("This item was changed by someone else — check it first.");
+  });
+  it("refused quietly: a plain write that changed nothing while the row is still there", () => {
+    expect(failureLine(null, { ...o, outcome: "refused" })).toBe("You don’t have permission to save the item.");
+    expect(failureLine(null, { action: "delete the item", thing: "item", outcome: "refused" })).toBe("You don’t have permission to delete the item.");
+  });
+  it("changed: 0 and a failed re-read: try again, neither removed nor changed", () => {
+    expect(failureLine(null, { ...o, outcome: "" })).toBe("Couldn’t save the item — try again.");
+  });
+  it("no answer, a 5xx or a plain 400: try again, never the hub's text", () => {
+    for (const e of [new Error("Failed to fetch"), err({ status: 503 }), err({ status: 500 }), err({ status: 400 }), undefined]) {
+      expect(failureLine(e, o)).toBe("Couldn’t save the item — try again.");
+    }
+  });
+});
+
+describe("outcomeUnknown", () => {
+  it("no status, a 400, or a 5xx other than 507: may have been stored", () => {
+    for (const e of [new Error("Failed to fetch"), { status: 400 }, { status: 500 }, { status: 503 }, undefined]) {
+      expect(outcomeUnknown(e)).toBe(true);
+    }
+  });
+  it("a refusal stored nothing", () => {
+    for (const status of [403, 404, 409, 507]) expect(outcomeUnknown({ status })).toBe(false);
+  });
+});
+
+describe("storedDiffers", () => {
+  const fields = { name: "Kettle", price_cents: 2999, warranty_months: 12, notes: "" };
+  it("same as stored, compared as text, null as empty", () => {
+    expect(storedDiffers({ name: "Kettle", price_cents: "2999", warranty_months: 12, notes: null, extra: "x" }, fields)).toBe(false);
+  });
+  it("a form edited since the first try", () => {
+    expect(storedDiffers({ name: "Kettle", price_cents: 2499, warranty_months: 12, notes: "" }, fields)).toBe(true);
   });
 });

@@ -110,7 +110,8 @@ const hubDay = () => new Date(`${hubToday()}T12:00:00`);
 import {
   CATEGORIES, categoryMeta, warrantyExpiryDate, warrantyLabel,
   sortedItems, parseMoneyToCents, searchableFields,
-  wantsExpiryEntry, saveEventPlan, expiryCancelledPayload,
+  wantsExpiryEntry, saveEventPlan, expiryCancelledPayload, failureLine,
+  outcomeUnknown, storedDiffers,
 } from "./logic.js";
 
 const CONTEXT = window.__CONTEXT_URL ?? "";
@@ -194,7 +195,8 @@ async function db(sql, params = []) {
     body: JSON.stringify({ sql, params }),
   });
   const json = await res.json().catch(() => null);
-  if (!res.ok || !json || typeof json !== "object" || json.error) throw new Error(json?.error || "Couldn’t reach the hub. Try again.");
+  // `status` and `code` ride on the error: the failure line depends on them.
+  if (!res.ok || !json || typeof json !== "object" || json.error) throw Object.assign(new Error(json?.error || "Couldn’t reach the hub. Try again."), { status: res.status, code: json?.code });
   return json;
 }
 
@@ -248,8 +250,12 @@ function showModalError(m) {
   return true;
 }
 function showError(msg) { if (showModalError(msg)) return; error = msg; render(); }
-// A failed write is said in this app's words; the error itself goes to the console.
+// A failed write is said in this app's words, chosen from its status
+// (`failureLine`); the error itself goes to the console.
 function writeFailed(e, line) { console.error("[warranty-vault]", e); showError(line); }
+const SAVE = { action: "save the item", thing: "item" };
+const ADD = { action: "add the item", thing: "item" };
+const DELETE = { action: "delete the item", thing: "item" };
 
 /* ── Mutations ─────────────────────────────────────────────────────────────── */
 /**
@@ -266,14 +272,17 @@ async function saveItem(fields, existingId, dlg) {
         "UPDATE app_warranty_vault__items SET name=?, category=?, purchase_date=?, price_cents=?, retailer=?, warranty_months=?, warranty_expires_date=?, serial_number=?, notes=?, receipt_file_id=?, receipt_doc_id=?, updated_at=? WHERE id=?",
         [fields.name, fields.category, fields.purchase_date, fields.price_cents, fields.retailer, fields.warranty_months, fields.warranty_expires_date, fields.serial_number, fields.notes, fields.receipt_file_id, fields.receipt_doc_id, now, existingId],
       );
-    } catch (e) { writeFailed(e, "Couldn’t save the item — try again."); return false; }
+    } catch (e) { writeFailed(e, failureLine(e, SAVE)); return false; }
     // The hub answers 200 with `changed: 0` when no row took the edit (the
     // item was deleted meanwhile, or the write was refused). Nothing is
     // stored, so the list is read again and the form stays open as typed.
     if (res.changed === 0) {
       await refresh();
-      const gone = !loadFailed && !items.some((i) => i.id === existingId);
-      showError(gone ? "This item is no longer in the vault." : "Couldn’t save the item — try again.");
+      // A list that could not be read says nothing either way: try again. An
+      // item still there means the hub's row policy refused this plain
+      // `WHERE id = ?` write.
+      const outcome = loadFailed ? "" : items.some((i) => i.id === existingId) ? "refused" : "removed";
+      showError(failureLine(null, { ...SAVE, outcome }));
       return false;
     }
     // Looked up after the write: the list may have been reloaded meanwhile.
@@ -297,18 +306,42 @@ async function saveItem(fields, existingId, dlg) {
     await publishSaveEvents(prev, items[idx]);
     return true;
   } else {
-    const row = { id: crypto.randomUUID(), ...fields, created_by: me.id, created_at: now, updated_at: now };
+    // The id is the form's, minted on its first Add and sent on every retry:
+    // a try whose answer was lost may have stored the item, and a second press
+    // must find that row rather than add another.
+    const id = dlg ? (dlg.dataset.rowId ||= crypto.randomUUID()) : crypto.randomUUID();
+    let row = { id, ...fields, created_by: me.id, created_at: now, updated_at: now };
+    let note = "";
     try {
       await db(
         "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, retailer, warranty_months, warranty_expires_date, serial_number, notes, receipt_file_id, receipt_doc_id, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [row.id, row.name, row.category, row.purchase_date, row.price_cents, row.retailer, row.warranty_months, row.warranty_expires_date, row.serial_number, row.notes, row.receipt_file_id, row.receipt_doc_id, row.created_by, now, now],
       );
-    } catch (e) { writeFailed(e, "Couldn’t add the item — try again."); return false; }
-    items = [...items, row];
+    } catch (e) {
+      // Unknown outcome: read the item back by the pinned id. Found means an
+      // earlier try landed and its success path never ran, so it runs now, once,
+      // with the item as stored. Not found, or the read failed: the add fails as
+      // before and the id stays pinned for the next press.
+      let stored = null;
+      if (outcomeUnknown(e)) {
+        try { stored = (await db("SELECT * FROM app_warranty_vault__items WHERE id = ?", [id])).rows?.[0] ?? null; }
+        catch (readErr) { console.error("[warranty-vault]", readErr); }
+      }
+      if (!stored) { writeFailed(e, failureLine(e, ADD)); return false; }
+      console.error("[warranty-vault]", e);
+      // Edited since that first try: what was stored is kept, and said so.
+      if (storedDiffers(stored, fields)) note = "Saved as first entered — check it and update what changed.";
+      row = stored;
+    }
+    if (dlg) delete dlg.dataset.rowId;
+    items = [...items.filter((x) => x.id !== row.id), row];
     if (modalEl === dlg) closeModal();
     // The item is stored: a throw while redrawing must not report it as failed.
     try { render(); } catch (e) { console.error("[warranty-vault]", e); }
     await publishSaveEvents(null, row);
+    // Last, so nothing drawn after it covers it: the edits since the first try
+    // were not stored.
+    if (note) showError(note);
     return true;
   }
 }
@@ -333,13 +366,15 @@ async function deleteItem(id) {
     // item whose DELETE then failed or was refused naming a destroyed receipt.
     const res = await db("DELETE FROM app_warranty_vault__items WHERE id = ?", [id]);
     // The hub answers 200 with `changed: 0` when it removed no row. The list
-    // is read again: an item still in it was not deleted, and is said so. One
+    // is read again: an item still in it was refused (the row policy), and is
+    // said so. One
     // that is gone may be an earlier try of this delete whose answer was
     // lost, so its entry is still retracted below.
     if (res.changed === 0) {
       await refresh();
-      if (loadFailed) return;
-      if (items.some((i) => i.id === id)) { showError("Couldn’t delete the item — try again."); return; }
+      // A list that could not be read says nothing either way: try again.
+      if (loadFailed) { showError(failureLine(null, DELETE)); return; }
+      if (items.some((i) => i.id === id)) { showError(failureLine(null, { ...DELETE, outcome: "refused" })); return; }
     }
     // Best-effort: the hub has already queued the file's reclaim with the row,
     // so a failure here leaves at most a document record with no file.
@@ -348,7 +383,7 @@ async function deleteItem(id) {
     // entry down with it. Only if it ever announced one: an item with no
     // warranty never put anything there to retract.
     if (item && wantsExpiryEntry(item)) await retractExpiry(item, "deleted");
-  } catch (e) { items = prev; writeFailed(e, "Couldn’t delete the item — try again."); }
+  } catch (e) { items = prev; writeFailed(e, failureLine(e, DELETE)); }
 }
 
 /** Upload a receipt file and create the hub document record. */
@@ -422,6 +457,7 @@ function render() {
         <p class="muted tiny">What you bought, when, and how long it's covered.</p>
       </div>
     </div>
+    ${error ? `<div class="error">${esc(error)}</div>` : ""}
     <div class="load-error" data-testid="load-error" role="alert"><span>Couldn’t load the vault.</span> <button type="button" class="load-error-retry" data-testid="load-retry">Try again</button></div>`;
     return;
   }
@@ -570,16 +606,17 @@ function openEditor(existing) {
       // Cancelled meanwhile: there is no form left to say it on.
       if (modalEl !== dlg) { console.error("[warranty-vault]", err); return; }
       setBusy(false);
-      // A file the hub would not take (too large, a type it does not store, no
-      // storage left) is said in the hub's words; any other failure is not.
-      const refused = err?.status === 507 || (err?.status >= 400 && err?.status < 500);
-      if (refused && err.message) showError(`Receipt upload failed: ${err.message}`);
-      else writeFailed(err, "Couldn’t upload the receipt — try again.");
+      // A file too large, or of a type the hub does not store, says so; any
+      // other failure is chosen from its status (no permission, storage full,
+      // or try again).
+      writeFailed(err, err?.status === 413 ? "That receipt is too large to upload."
+        : err?.status === 415 ? "That kind of file can’t be stored as a receipt."
+        : failureLine(err, { action: "upload the receipt", thing: "receipt" }));
       return;
     }
 
     setBusy(true, true);
-    const saved = await saveItem(fields, i?.id ?? null, dlg).catch((err) => { writeFailed(err, "Couldn’t save the item — try again."); return false; });
+    const saved = await saveItem(fields, i?.id ?? null, dlg).catch((err) => { writeFailed(err, failureLine(err, i ? SAVE : ADD)); return false; });
     // A failed save leaves the form as typed, ready to be sent again.
     if (!saved) setBusy(false);
     // The edited item is gone (the list was just read again without it), so no
