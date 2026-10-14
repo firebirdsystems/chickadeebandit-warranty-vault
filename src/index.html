@@ -330,7 +330,16 @@ async function deleteItem(id) {
     // permanently. Neither order can lose them now.
     // The hub document is still its own lane and still goes first.
     if (item?.receipt_doc_id && DOCS) await fetch(`${DOCS}/${encodeURIComponent(item.receipt_doc_id)}`, { method: "DELETE" }).catch(() => {});
-    await db("DELETE FROM app_warranty_vault__items WHERE id = ?", [id]);
+    const res = await db("DELETE FROM app_warranty_vault__items WHERE id = ?", [id]);
+    // The hub answers 200 with `changed: 0` when it removed no row. The list
+    // is read again: an item still in it was not deleted, and is said so. One
+    // that is gone may be an earlier try of this delete whose answer was
+    // lost, so its entry is still retracted below.
+    if (res.changed === 0) {
+      await refresh();
+      if (loadFailed) return;
+      if (items.some((i) => i.id === id)) { showError("Couldn’t delete the item — try again."); return; }
+    }
     // The row is gone, so the day it named means nothing — take the calendar
     // entry down with it. Only if it ever announced one: an item with no
     // warranty never put anything there to retract.
@@ -569,6 +578,16 @@ function openEditor(existing) {
     const saved = await saveItem(fields, i?.id ?? null, dlg).catch((err) => { writeFailed(err, "Couldn’t save the item — try again."); return false; });
     // A failed save leaves the form as typed, ready to be sent again.
     if (!saved) setBusy(false);
+    // The edited item is gone (the list was just read again without it), so no
+    // row names the receipt this form sent. Its document goes first and the
+    // file only once no document names it; sending again uploads afresh.
+    if (!saved && uploaded && i && !loadFailed && !items.some((x) => x.id === i.id)) {
+      const { fileId, docId } = uploaded;
+      uploaded = null;
+      Promise.resolve(docId && DOCS ? fetch(`${DOCS}/${encodeURIComponent(docId)}`, { method: "DELETE" }) : null)
+        .then((r) => { if (!r || r.ok || r.status === 404) return files.delete(fileId); })
+        .catch(() => {});
+    }
     // The replaced receipt goes only once the item names the new one: after a
     // failed save the item still points at it. Best-effort; a failure here
     // leaves the save standing.
