@@ -241,18 +241,20 @@ async function refresh() {
 }
 
 // An open dialog covers the page banner, so the message goes inside the dialog.
-function showModalError(m) {
-  const box = modalEl?.querySelector(".modal");
+// `dlg` is the dialog a save came from: once it is cancelled or replaced, the
+// save's late answer goes to the page, never into a dialog opened since.
+function showModalError(m, dlg = modalEl) {
+  const box = dlg && dlg === modalEl ? dlg.querySelector(".modal") : null;
   if (!box) return false;
   let el = box.querySelector(".error");
   if (!el) { el = document.createElement("div"); el.className = "error"; el.setAttribute("role", "alert"); box.prepend(el); }
   el.textContent = m;
   return true;
 }
-function showError(msg) { if (showModalError(msg)) return; error = msg; render(); }
+function showError(msg, dlg = modalEl) { if (showModalError(msg, dlg)) return; error = msg; render(); }
 // A failed write is said in this app's words, chosen from its status
 // (`failureLine`); the error itself goes to the console.
-function writeFailed(e, line) { console.error("[warranty-vault]", e); showError(line); }
+function writeFailed(e, line, dlg = modalEl) { console.error("[warranty-vault]", e); showError(line, dlg); }
 const SAVE = { action: "save the item", thing: "item" };
 const ADD = { action: "add the item", thing: "item" };
 const DELETE = { action: "delete the item", thing: "item" };
@@ -272,7 +274,7 @@ async function saveItem(fields, existingId, dlg) {
         "UPDATE app_warranty_vault__items SET name=?, category=?, purchase_date=?, price_cents=?, retailer=?, warranty_months=?, warranty_expires_date=?, serial_number=?, notes=?, receipt_file_id=?, receipt_doc_id=?, updated_at=? WHERE id=?",
         [fields.name, fields.category, fields.purchase_date, fields.price_cents, fields.retailer, fields.warranty_months, fields.warranty_expires_date, fields.serial_number, fields.notes, fields.receipt_file_id, fields.receipt_doc_id, now, existingId],
       );
-    } catch (e) { writeFailed(e, failureLine(e, SAVE)); return false; }
+    } catch (e) { writeFailed(e, failureLine(e, SAVE), dlg); return false; }
     // The hub answers 200 with `changed: 0` when no row took the edit (the
     // item was deleted meanwhile, or the write was refused). Nothing is
     // stored, so the list is read again and the form stays open as typed.
@@ -282,7 +284,7 @@ async function saveItem(fields, existingId, dlg) {
       // item still there means the hub's row policy refused this plain
       // `WHERE id = ?` write.
       const outcome = loadFailed ? "" : items.some((i) => i.id === existingId) ? "refused" : "removed";
-      showError(failureLine(null, { ...SAVE, outcome }));
+      showError(failureLine(null, { ...SAVE, outcome }), dlg);
       return false;
     }
     // Looked up after the write: the list may have been reloaded meanwhile.
@@ -302,8 +304,8 @@ async function saveItem(fields, existingId, dlg) {
     // spend an automation run rewriting an entry that is already correct.
     // An item no longer in the list has nothing to announce: with no `prev`
     // it would read as an insert.
-    if (idx === -1) return true;
-    await publishSaveEvents(prev, items[idx]);
+    if (idx !== -1) await publishSaveEvents(prev, items[idx]);
+    await rereadAfterSave();
     return true;
   } else {
     // The id is the form's, minted on its first Add and sent on every retry:
@@ -323,11 +325,14 @@ async function saveItem(fields, existingId, dlg) {
       // with the item as stored. Not found, or the read failed: the add fails as
       // before and the id stays pinned for the next press.
       let stored = null;
+      let readFailed = false;
       if (outcomeUnknown(e)) {
         try { stored = (await db("SELECT * FROM app_warranty_vault__items WHERE id = ?", [id])).rows?.[0] ?? null; }
-        catch (readErr) { console.error("[warranty-vault]", readErr); }
+        catch (readErr) { console.error("[warranty-vault]", readErr); readFailed = true; }
       }
-      if (!stored) { writeFailed(e, failureLine(e, ADD)); return false; }
+      // The id is ours: with the read-back failed, a UNIQUE answer may be this
+      // form's own first try, so nothing is known — "try again", not "already exists".
+      if (!stored) { writeFailed(e, failureLine(readFailed ? null : e, ADD), dlg); return false; }
       console.error("[warranty-vault]", e);
       row = stored;
       // Edited since that first try (a field changed, another receipt picked):
@@ -372,11 +377,19 @@ async function saveItem(fields, existingId, dlg) {
     // The item is stored: a throw while redrawing must not report it as failed.
     try { render(); } catch (e) { console.error("[warranty-vault]", e); }
     await publishSaveEvents(null, row);
+    await rereadAfterSave();
     // Last, so nothing drawn after it covers it: the edits since the first try
     // were not stored.
-    if (note) showError(note);
+    if (note) showError(note, dlg);
     return true;
   }
+}
+
+/** The re-read after a stored save. It is not the save: failing, it keeps the
+ *  list as drawn from the saved values (loadItems assigns only on success). */
+async function rereadAfterSave() {
+  if (!DB) return; // the demo list is seeded, not read: a re-read would drop the save
+  try { await loadItems(); render(); } catch (e) { console.error("[warranty-vault]", e); }
 }
 
 async function deleteItem(id) {
@@ -530,8 +543,7 @@ function openModal(html) {
   modalEl = document.createElement("div");
   modalEl.className = "overlay";
   modalEl.innerHTML = `<div class="modal">${html}</div>`;
-  // A form whose item write is out stays put until the hub has answered.
-  modalEl.addEventListener("click", (e) => { if (e.target === modalEl && !modalEl.dataset.writing) closeModal(); });
+  modalEl.addEventListener("click", (e) => { if (e.target === modalEl) closeModal(); });
   document.body.appendChild(modalEl);
 }
 function closeModal() { modalEl?.remove(); modalEl = null; }
@@ -580,20 +592,19 @@ function openEditor(existing) {
     if (!name) { document.getElementById("f-name").focus(); return; }
     const priceRaw = document.getElementById("f-price").value.trim();
     const price = parseMoneyToCents(priceRaw);
-    if (priceRaw && price == null) { showError("Price must be a dollar amount like 749 or 749.99."); return; }
+    if (priceRaw && price == null) { showError("Price must be a dollar amount like 749 or 749.99.", dlg); return; }
     const purchaseDate = document.getElementById("f-date").value;
     const warrantyRaw = document.getElementById("f-warranty").value;
     const warrantyMonths = warrantyRaw ? Number(warrantyRaw) : null;
     const btn = dlg.querySelector('button[type="submit"]');
-    // While a save is out the form cannot be sent twice or deleted. Cancel
-    // still works through the receipt upload, which can be slow and is undone
-    // below; once the item itself is being written (`writing`) the form waits
-    // for the answer, so what the list shows and what is stored cannot part.
-    const setBusy = (on, writing = false) => {
+    // While a save is out the form cannot be sent twice or deleted. Cancel and
+    // the backdrop stay live throughout: a receipt that finishes uploading
+    // after a cancel is undone below, and the item write's late answer closes
+    // this form or shows its error only while it is still the open one
+    // (otherwise its line goes to the page).
+    const setBusy = (on) => {
       dlg.dataset.busy = on ? "1" : "";
-      dlg.dataset.writing = writing ? "1" : "";
       dlg.querySelectorAll('button[type="submit"], [data-delete]').forEach((b) => { b.disabled = on; });
-      dlg.querySelectorAll("[data-cancel]").forEach((b) => { b.disabled = writing; });
       if (btn) btn.textContent = on ? "Saving…" : (i ? "Save" : "Add");
       if (!on) btn?.focus();
     };
@@ -644,12 +655,11 @@ function openEditor(existing) {
       // or try again).
       writeFailed(err, err?.status === 413 ? "That receipt is too large to upload."
         : err?.status === 415 ? "That kind of file can’t be stored as a receipt."
-        : failureLine(err, { action: "upload the receipt", thing: "receipt" }));
+        : failureLine(err, { action: "upload the receipt", thing: "receipt" }), dlg);
       return;
     }
 
-    setBusy(true, true);
-    const saved = await saveItem(fields, i?.id ?? null, dlg).catch((err) => { writeFailed(err, failureLine(err, i ? SAVE : ADD)); return false; });
+    const saved = await saveItem(fields, i?.id ?? null, dlg).catch((err) => { writeFailed(err, failureLine(err, i ? SAVE : ADD), dlg); return false; });
     // A failed save leaves the form as typed, ready to be sent again.
     if (!saved) setBusy(false);
     // The edited item is gone (the list was just read again without it), so no
