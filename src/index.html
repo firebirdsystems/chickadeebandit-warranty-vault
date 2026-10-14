@@ -267,6 +267,10 @@ const DELETE = { action: "delete the item", thing: "item" };
  */
 async function saveItem(fields, existingId, dlg) {
   const now = nowIso();
+  // A try whose answer was lost may have stored a row naming this form's
+  // receipt. Marked on the form and never cleared, so the receipt is kept
+  // once any try's outcome was unknown (see the submit handler).
+  const lost = (e) => { if (dlg && outcomeUnknown(e)) dlg.dataset.answerLost = "1"; };
   if (existingId) {
     let res;
     try {
@@ -274,7 +278,7 @@ async function saveItem(fields, existingId, dlg) {
         "UPDATE app_warranty_vault__items SET name=?, category=?, purchase_date=?, price_cents=?, retailer=?, warranty_months=?, warranty_expires_date=?, serial_number=?, notes=?, receipt_file_id=?, receipt_doc_id=?, updated_at=? WHERE id=?",
         [fields.name, fields.category, fields.purchase_date, fields.price_cents, fields.retailer, fields.warranty_months, fields.warranty_expires_date, fields.serial_number, fields.notes, fields.receipt_file_id, fields.receipt_doc_id, now, existingId],
       );
-    } catch (e) { writeFailed(e, failureLine(e, SAVE), dlg); return false; }
+    } catch (e) { lost(e); writeFailed(e, failureLine(e, SAVE), dlg); return false; }
     // The hub answers 200 with `changed: 0` when no row took the edit (the
     // item was deleted meanwhile, or the write was refused). Nothing is
     // stored, so the list is read again and the form stays open as typed.
@@ -332,7 +336,7 @@ async function saveItem(fields, existingId, dlg) {
       }
       // The id is ours: with the read-back failed, a UNIQUE answer may be this
       // form's own first try, so nothing is known — "try again", not "already exists".
-      if (!stored) { writeFailed(e, failureLine(readFailed ? null : e, ADD), dlg); return false; }
+      if (!stored) { lost(e); writeFailed(e, failureLine(readFailed ? null : e, ADD), dlg); return false; }
       console.error("[warranty-vault]", e);
       row = stored;
       // Edited since that first try (a field changed, another receipt picked):
@@ -659,9 +663,23 @@ function openEditor(existing) {
       return;
     }
 
-    const saved = await saveItem(fields, i?.id ?? null, dlg).catch((err) => { writeFailed(err, failureLine(err, i ? SAVE : ADD), dlg); return false; });
+    const saved = await saveItem(fields, i?.id ?? null, dlg).catch((err) => {
+      dlg.dataset.answerLost = "1"; // thrown past the write: what was stored is not known
+      writeFailed(err, failureLine(err, i ? SAVE : ADD), dlg); return false;
+    });
     // A failed save leaves the form as typed, ready to be sent again.
     if (!saved) setBusy(false);
+    // Cancelled while the save was out, and the hub refused it: nothing will
+    // send this form again, and no row names the receipt it uploaded, so it
+    // goes — document first, the file once no document names it. Kept if any
+    // try's answer was lost: a stored row may name it.
+    if (!saved && uploaded && modalEl !== dlg && !dlg.dataset.answerLost) {
+      const { fileId, docId } = uploaded;
+      uploaded = null;
+      Promise.resolve(docId && DOCS ? fetch(`${DOCS}/${encodeURIComponent(docId)}`, { method: "DELETE" }) : null)
+        .then((r) => { if (!r || r.ok || r.status === 404) return files.delete(fileId); })
+        .catch(() => {});
+    }
     // The edited item is gone (the list was just read again without it), so no
     // row names the receipt this form sent. Its document goes first and the
     // file only once no document names it; sending again uploads afresh.
