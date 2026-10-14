@@ -328,8 +328,9 @@ async function deleteItem(id) {
     // and the storage reconciler only reaps objects with NO metadata row, so
     // deleting the row first and dying before the file call leaked the bytes
     // permanently. Neither order can lose them now.
-    // The hub document is still its own lane and still goes first.
-    if (item?.receipt_doc_id && DOCS) await fetch(`${DOCS}/${encodeURIComponent(item.receipt_doc_id)}`, { method: "DELETE" }).catch(() => {});
+    // The hub document is still its own lane, and goes only once the row is
+    // gone: deleting it takes the receipt file with it, so going first left an
+    // item whose DELETE then failed or was refused naming a destroyed receipt.
     const res = await db("DELETE FROM app_warranty_vault__items WHERE id = ?", [id]);
     // The hub answers 200 with `changed: 0` when it removed no row. The list
     // is read again: an item still in it was not deleted, and is said so. One
@@ -340,6 +341,9 @@ async function deleteItem(id) {
       if (loadFailed) return;
       if (items.some((i) => i.id === id)) { showError("Couldn’t delete the item — try again."); return; }
     }
+    // Best-effort: the hub has already queued the file's reclaim with the row,
+    // so a failure here leaves at most a document record with no file.
+    if (item?.receipt_doc_id && DOCS) await fetch(`${DOCS}/${encodeURIComponent(item.receipt_doc_id)}`, { method: "DELETE" }).catch(() => {});
     // The row is gone, so the day it named means nothing — take the calendar
     // entry down with it. Only if it ever announced one: an item with no
     // warranty never put anything there to retract.

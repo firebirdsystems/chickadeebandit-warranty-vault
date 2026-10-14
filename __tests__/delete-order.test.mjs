@@ -37,13 +37,17 @@ describe("deleteItem", () => {
     expect(body).not.toContain("files.delete");
   });
 
-  it("still removes the hub document before the row that names it", () => {
-    // The hub document is a separate lane with its own record, not covered by
-    // delete_file_columns — it keeps the ordering it always had.
+  it("removes the hub document only after the row that names it", () => {
+    // The hub document is a separate lane with its own record, and deleting it
+    // takes the receipt file with it. Going first, a row DELETE that then
+    // failed or was refused left the item naming a destroyed receipt. The
+    // bytes are safe in this order too: the row's DELETE queues their reclaim.
     const doc = body.indexOf('method: "DELETE" }).catch');
     const row = body.indexOf("DELETE FROM app_warranty_vault__items");
-    expect(doc).toBeGreaterThan(-1);
-    expect(row).toBeGreaterThan(doc);
+    const refused = body.indexOf("if (items.some((i) => i.id === id))");
+    expect(row).toBeGreaterThan(-1);
+    expect(refused).toBeGreaterThan(row);
+    expect(doc).toBeGreaterThan(refused);
   });
 
   it("deletes the item as a single statement, which the declaration requires", () => {
