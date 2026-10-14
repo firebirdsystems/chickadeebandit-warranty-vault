@@ -76,6 +76,56 @@
           "expect": { "status": 201 }
         }
       ]
+    },
+    {
+      "name": "in a shared space every adult co-owner adds and edits warranties; a granted guest can look them up but not write",
+      "context": "shared_space",
+      "members": { "steward": "admin", "coowner": "adult", "guest": "guest" },
+      "granted": ["guest"],
+      "steps": [
+        {
+          "action": "db",
+          "as": "coowner",
+          "sql": "INSERT INTO app_warranty_vault__items (id, name, category, purchase_date, price_cents, warranty_months, warranty_expires_date, serial_number, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "params": ["w1", "Water heater", "appliances", "2025-05-01", 129900, 72, "2031-05-01", "WH-42", "{{coowner}}", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "steward",
+          "sql": "UPDATE app_warranty_vault__items SET retailer = ?, updated_at = ? WHERE id = ?",
+          "params": ["Lakeside Hardware", "2026-01-02T00:00:00Z", "w1"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "coowner",
+          "sql": "SELECT retailer, serial_number FROM app_warranty_vault__items WHERE id = ?",
+          "params": ["w1"],
+          "expect": { "status": 200, "rowCount": 1, "rowsContain": [{ "retailer": "Lakeside Hardware", "serial_number": "WH-42" }] }
+        },
+        {
+          "action": "db",
+          "as": "guest",
+          "sql": "SELECT id FROM app_warranty_vault__items",
+          "expect": { "status": 200, "rowCount": 1 }
+        },
+        {
+          "action": "db",
+          "as": "guest",
+          "sql": "DELETE FROM app_warranty_vault__items WHERE id = ?",
+          "params": ["w1"],
+          "expect": { "status": 403 }
+        },
+        {
+          "action": "publish",
+          "as": "coowner",
+          "type": "warranty.item_added",
+          "subject_id": "w1",
+          "payload": { "name": "Water heater" },
+          "expect": { "status": 201 }
+        }
+      ]
     }
   ]
 }
