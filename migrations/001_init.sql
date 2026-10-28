@@ -15,7 +15,7 @@
 -- receipt_file_id / receipt_doc_id reference the hub file + document records
 -- for the uploaded receipt (created via /api/files and __DOCS_URL).
 CREATE TABLE IF NOT EXISTS app_warranty_vault__items (
-  id                    TEXT PRIMARY KEY,
+  id                    TEXT NOT NULL PRIMARY KEY,
   name                  TEXT NOT NULL,                 -- "LG Dishwasher"
   category              TEXT NOT NULL DEFAULT 'other', -- electronics|appliances|furniture|tools|outdoor|other
   purchase_date         TEXT NOT NULL DEFAULT '',      -- ISO YYYY-MM-DD
